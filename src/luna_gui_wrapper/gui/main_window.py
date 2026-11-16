@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import subprocess
 import time
 import traceback
+from collections import deque
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QTimer
@@ -26,14 +28,17 @@ from ..functions.backend import (Backend, detect_backend, drive_letter,
 from ..functions.common import (_NO_WINDOW, APP_NAME, ICON_PATH, IS_WINDOWS,
                                 human_size)
 from ..functions.config import load_config, save_config
-from ..functions.flags import (FLAG_GROUPS, flag_args, flag_bits,
+from ..functions.detectors import DETECTORS, TPX3, TPX4, detect_from_file
+from ..functions.failures import diagnose, still_fails
+from ..functions.flags import (FLAG_GROUPS, FLAGS, flag_args, flag_bits,
                                flag_problems)
 from ..functions.naming import (DEFAULT_TEMPLATE, PRESET_TEMPLATES,
                                 TEMPLATE_HELP, Job, measurement_context,
                                 migrate_template, render_name)
-from ..functions.plotting import (CSIZE_BINS, CSIZE_MAX, PLOT_FIGSIZE,
-                                  PLOT_TITLES, STOT_TARGET_BINS, TOT_LSB_NS,
-                                  plot_style_context)
+from ..functions.plotting import (CSIZE_BINS, CSIZE_MAX, HITMAP_CLIP_FACTOR,
+                                  HITMAP_CLIP_PERCENTILE, PLOT_FIGSIZE,
+                                  PLOT_TITLES, STOT_TARGET_BINS, TOT_MAX_BINS,
+                                  plot_style_context, tot_bin_edges)
 from ..functions.tdc import (TDC_DATASET, TDC_REFERENCES,
                              TDC_SECONDS_PER_TICK, TDC_SOURCES, TDC_STAMP,
                              TOF_TDC_REFERENCES, add_tdc_columns,
@@ -51,6 +56,18 @@ from .widgets import (CheckHeader, PathEdit, PathsEdit, button, row, table,
 # ---------------------------------------------------------------------------
 # optional scientific stack (Inspect tab only)
 # ---------------------------------------------------------------------------
+
+# Converter lines worth keeping for diagnosing a failure. Only tested on the
+# first line of each kind, so the cost stays off the per-line path.
+_ALARM = re.compile(r"panicked at|^error|error:|no space left|permission denied|"
+                    r"skipping file", re.IGNORECASE)
+# Luna's "[crates/.../file.rs:137] [thread: Name]" location prefix.
+_LOG_PREFIX = re.compile(r"^\[[^\]]*\]\s*\[thread:[^\]]*\]\s*")
+# Blanks the digits out of a log line, so lines of one kind compare equal.
+# A translate table rather than a regex: it runs once per line of converter
+# output, which can be hundreds of thousands of lines per file.
+_DIGITS = str.maketrans("0123456789", "##########")
+
 
 def require_h5py(parent=None):
     try:
@@ -87,7 +104,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.cfg = load_config()
-        self._template_migrated = migrate_template(self.cfg)
+        migrate_template(self.cfg)    # one-time move onto the current default name
         self.jobs = []
         self.folders = []
         self.backend = Backend()
@@ -97,6 +114,13 @@ class MainWindow(QMainWindow):
         self.total = self.done = self.ok = self.failed = 0
         self.t_all = self.t_job = 0.0
         self.cur = -1
+        # Which Luna converter, raw files and units: Timepix3 or Timepix4.
+        self.det = DETECTORS.get(self.cfg.get("detector"), TPX3)
+        # The converter's output, buffered on its way into the log.
+        self._flush_timer = QTimer(self)
+        self._flush_timer.setSingleShot(True)
+        self._flush_timer.timeout.connect(self._flush_output)
+        self._reset_output()
 
         self.theme_name = self.cfg.get("theme") if self.cfg.get("theme") in PALETTES else "light"
         self.pal = PALETTES[self.theme_name]
@@ -150,19 +174,88 @@ class MainWindow(QMainWindow):
         self._build_menu()
 
         self.apply_theme(self.theme_name)
-        self.refresh_backend()
-        self.update_adv_summary()
+        self.apply_detector()
 
         # Restore last session's batch; deferred so the window paints first
         # even when the folders live on a slow or absent disk.
-        saved = self.cfg.get("folders") or []
+        self._load_folders()
+        if self.folders:
+            QTimer.singleShot(300, self.scan_folders)
+
+    # -- detector ---------------------------------------------------------
+
+    def _det_key(self, base, det=None):
+        """Settings key for state kept per detector. Timepix3 keeps the
+        historical key, so an existing install loses nothing."""
+        det = det or self.det
+        return base if det is TPX3 else base + "_" + det.key
+
+    def _load_folders(self):
+        saved = self.cfg.get(self._det_key("folders")) or []
         self.folders = [{"path": f.get("path", ""),
                          "recursive": bool(f.get("recursive", True)),
                          "count": None}
                         for f in saved if isinstance(f, dict) and f.get("path")]
+        self.folder_model.reset()
+
+    def _store_detector_state(self):
+        """The current detector's Luna folder and batch, into the settings."""
+        self.cfg[self._det_key("luna_dir")] = self.e_luna.text()
+        self.cfg[self._det_key("folders")] = [
+            {"path": f["path"], "recursive": f["recursive"]} for f in self.folders]
+
+    def switch_detector(self, key):
+        """Change between Timepix3 and Timepix4.
+
+        Each keeps its own Luna folder and batch folders, so switching swaps
+        the whole setup rather than scanning Timepix3 folders for .tpx4
+        files. The flag values are shared; only the current converter's are
+        shown and passed.
+        """
+        new = DETECTORS[key]
+        if new is self.det:
+            self.apply_detector()           # re-check the toggle it unchecked
+            return
+        if self.proc is not None:
+            QMessageBox.information(self, APP_NAME,
+                                    "Wait for the run to finish, or stop it, "
+                                    "before switching detector.")
+            self.apply_detector()
+            return
+        self._store_detector_state()
+        self.det = new
+        self.cfg["detector"] = new.key
+        self.e_luna.setText(self.cfg.get(self._det_key("luna_dir"), ""))
+        self.jobs = []
+        self._load_folders()
+        self.apply_detector()
+        self.log(f"Switched to {new.name}: {new.exe}, {new.suffix} files.")
         if self.folders:
-            self.folder_model.reset()
-            QTimer.singleShot(300, self.scan_folders)
+            self.scan_folders()
+        else:
+            self.recompute_outputs()
+
+    def apply_detector(self):
+        """Bring every detector-dependent label and control in line."""
+        d = self.det
+        self.b_tpx3.setChecked(d is TPX3)
+        self.b_tpx4.setChecked(d is TPX4)
+        self.e_luna.setPlaceholderText(f"the folder containing bin/{d.exe}")
+        self.lbl_intro_cmd.setText(f"{d.exe} process -i NAME{d.suffix} -o NAME.hdf5")
+        self.lbl_intro_tail.setText(
+            f"for every queued file, writing the .hdf5 beside its {d.suffix}.")
+        self.g_opt.setTitle(f"{d.exe} flags  (blank = {d.exe}'s own default)")
+        for f in FLAGS:
+            for w in self.flag_rows[f.key]:
+                w.setVisible(d.key in f.detectors)
+        for cap, group in self.flag_caps:
+            cap.setVisible(any(d.key in f.detectors for f in group))
+        # tpx4dump records no TDC edges, so there is nothing to tag from.
+        self.g_post.setVisible(d is TPX3)
+        self.b_add_folders.setToolTip(
+            f"Queue every {d.suffix} found under one or more folders")
+        self.refresh_backend()
+        self.update_adv_summary()
 
     # -- theme ------------------------------------------------------------
 
@@ -207,16 +300,26 @@ class MainWindow(QMainWindow):
         # button turns yellow the moment anything deviates from the plain run,
         # and lists it all on a click.
         self.b_adv = button("Advanced flags", self.show_adv_flags)
-        lay.addWidget(row(self.lbl_status, None, self.b_adv, self.b_setup))
+        # Which detector the batch is for: picks the Luna converter, the raw
+        # files a folder scan queues, and the flags on offer.
+        self.b_tpx3 = button("Timepix3", lambda: self.switch_detector("tpx3"),
+                             toggle=True, tip="Process .tpx3 files with tpx3dump")
+        self.b_tpx4 = button("Timepix4", lambda: self.switch_detector("tpx4"),
+                             toggle=True, tip="Process .tpx4 files with tpx4dump")
+        cap_det = QLabel("Detector")
+        cap_det.setProperty("muted", True)
+        lay.addWidget(row(cap_det, self.b_tpx3, self.b_tpx4, vline(),
+                          self.lbl_status, None, self.b_adv, self.b_setup,
+                          spacing=6))
 
         # Additive actions on the left, the destructive one pushed to the far
         # right so "Clear" can never be hit while reaching for "Add".
+        self.b_add_folders = button("Add folders...", self.add_folders_dialog)
         cap_in = QLabel("Input")
         cap_in.setProperty("muted", True)
         lay.addWidget(row(
             cap_in,
-            button("Add folders...", self.add_folders_dialog,
-                   tip="Queue every .tpx3 found under one or more folders"),
+            self.b_add_folders,
             vline(),
             button("Rescan", self.scan_folders,
                    tip="Re-read the batch folders and queue anything new"),
@@ -255,7 +358,15 @@ class MainWindow(QMainWindow):
         rlay.setSpacing(4)
         cap_r = QLabel("Files found")
         cap_r.setProperty("muted", True)
-        rlay.addWidget(cap_r)
+        # Pushed to the right edge, so it sits above the Overwrite column it
+        # works through. Live only once something has failed.
+        self.b_rerun = button("Rerun failed", self.rerun_failed,
+                              tip="No file has failed")
+        self.b_rerun.setEnabled(False)
+        self.b_rerun.setProperty("adv", "off")
+        rlay.addWidget(row(cap_r, None, self.b_rerun))
+        # Same height for the left caption, so the two tables start level.
+        cap_l.setMinimumHeight(self.b_rerun.sizeHint().height())
         self.jtable = table(self.job_model, stretch_cols=(3,),
                             widths=(110, 175, 70, 320, 108))
         self.jhead = CheckHeader(JobModel.OVER, self.pal,
@@ -284,11 +395,15 @@ class MainWindow(QMainWindow):
         cap_log = QLabel("Log")
         cap_log.setProperty("muted", True)
         lay.addWidget(row(cap_log, None,
+                          button("Save log...", self.save_log,
+                                 tip="Write the whole log to a text file"),
                           button("Clear log", lambda: self.log_view.clear())))
 
+        # No line cap: a long batch's log is kept whole. The repeat collapsing
+        # in _take_line keeps it to a few dozen lines per file, which a
+        # QPlainTextEdit takes in its stride even for thousands of files.
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
-        self.log_view.setMaximumBlockCount(20000)   # long batches stay responsive
         self.log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         lay.addWidget(self.log_view, 2)
 
@@ -321,10 +436,11 @@ class MainWindow(QMainWindow):
         intro.setSpacing(6)
         head = QLabel("All optional. Left alone, the Process tab runs exactly")
         head.setProperty("intro", True)
-        cmd = QLabel("tpx3dump process -i NAME.tpx3 -o NAME.hdf5")
+        # Both texts follow the detector; apply_detector() fills them in.
+        cmd = self.lbl_intro_cmd = QLabel("")
         cmd.setProperty("code", True)
         cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        tail = QLabel("for every queued file, writing the .hdf5 beside its .tpx3.")
+        tail = self.lbl_intro_tail = QLabel("")
         tail.setProperty("intro", True)
         intro.addWidget(head)
         intro.addWidget(row(cmd, None, margins=(14, 0, 0, 0)))
@@ -338,7 +454,7 @@ class MainWindow(QMainWindow):
         gl.setVerticalSpacing(8)
         gl.setColumnStretch(1, 1)
         gl.addWidget(QLabel("Folder:"), 0, 0)
-        self.e_luna = PathEdit(self.cfg.get("luna_dir", ""))
+        self.e_luna = PathEdit(self.cfg.get(self._det_key("luna_dir"), ""))
         self.e_luna.setPlaceholderText("the folder containing bin/tpx3dump")
         self.e_luna.editingFinished.connect(self.refresh_backend)
         self.e_luna.path_dropped.connect(lambda _p: self.refresh_backend())
@@ -381,15 +497,9 @@ class MainWindow(QMainWindow):
         go.addWidget(self.e_template, 2, 1)
         go.addWidget(button("Presets...", self.template_presets), 2, 2)
 
-        # Two fixed lines on purpose. One unwrapped line of 20 placeholders is
-        # a ~1070 px minimum width that pins the whole window wide, and a
-        # word-wrapped QLabel is height-for-width, which a grid inside a group
-        # box sizes unreliably -- it came out a line short and the rows below
-        # ran into it.
-        words = TEMPLATE_HELP.split()
-        half = (len(words) + 1) // 2
-        ph = QLabel("placeholders:  " + " ".join(words[:half]) + "\n"
-                    + " " * 16 + " ".join(words[half:]))
+        # One unwrapped line: a word-wrapped QLabel is height-for-width, which
+        # a grid inside a group box sizes unreliably.
+        ph = QLabel("placeholders:  " + TEMPLATE_HELP)
         ph.setProperty("faint", True)
         ph.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         go.addWidget(ph, 3, 1, 1, 2)
@@ -407,21 +517,27 @@ class MainWindow(QMainWindow):
         # One flag per row -- name, control, a one-line note -- built from
         # FLAG_GROUPS, so the notes line up in a column and a new flag needs
         # no layout work. The full story is in each row's tooltip.
-        g_opt = QGroupBox("tpx3dump flags  (blank = tpx3dump's own default)")
+        # Every flag is built; apply_detector() shows the ones the current
+        # converter accepts and titles the group after it.
+        g_opt = self.g_opt = QGroupBox("")
         gf = QGridLayout(g_opt)
         gf.setHorizontalSpacing(10)
         gf.setVerticalSpacing(6)
         gf.setColumnStretch(2, 1)
         right = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         self.flag_w = {}
+        self.flag_rows = {}            # key -> the row's widgets, to show/hide
+        self.flag_caps = []            # (caption, its flags)
         r = 0
         for title, group in FLAG_GROUPS:
             cap = QLabel(title)
             cap.setProperty("muted", True)
+            # Air above every group but the first, as the caption's own margin
+            # so a group hidden for this detector takes its gap with it.
             if r:
-                gf.setRowMinimumHeight(r, 10)     # air above every group but the first
-                r += 1
+                cap.setContentsMargins(0, 10, 0, 0)
             gf.addWidget(cap, r, 0, 1, 3)
+            self.flag_caps.append((cap, group))
             r += 1
             for f in group:
                 label = QLabel(f.flag)
@@ -430,9 +546,11 @@ class MainWindow(QMainWindow):
                 ctl = self._flag_control(f)
                 tip = f.note + (".\n\n" + f.tip if f.tip else ".")
                 if f.default:
-                    tip += "\n\ntpx3dump's default: " + f.default
+                    tip += "\n\nDefault: " + f.default
+                tip += "\nFor: " + " and ".join(DETECTORS[k].name for k in f.detectors)
                 for w in (label, ctl, note):
                     w.setToolTip(tip)
+                self.flag_rows[f.key] = (label, ctl, note)
                 gf.addWidget(label, r, 0, right)
                 if f.kind == "path":
                     # A path needs the width; its note goes underneath.
@@ -461,7 +579,7 @@ class MainWindow(QMainWindow):
         # Not a tpx3dump flag: the GUI reopens the finished .hdf5 and writes
         # the TDC columns into it itself. Kept visually apart from the flags
         # above so it is never mistaken for one.
-        g_post = QGroupBox("After processing  (this GUI, not tpx3dump)")
+        g_post = self.g_post = QGroupBox("After processing  (this GUI, not Luna)")
         gp = QHBoxLayout(g_post)
         gp.setSpacing(8)
         self.cb_tdc = QCheckBox("Add TDC columns to each output .hdf5")
@@ -554,7 +672,7 @@ class MainWindow(QMainWindow):
         return vals
 
     def flags_ok(self):
-        problems = flag_problems(self.flag_values())
+        problems = flag_problems(self.flag_values(), self.det.key)
         if problems:
             QMessageBox.critical(self, APP_NAME,
                                  "Fix these on the Advanced tab first:\n\n"
@@ -626,10 +744,21 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self, "About " + APP_NAME,
             f"<b>{APP_NAME}</b> {__version__}<br><br>"
-            "A batch front end for Luna's <code>tpx3dump</code>, with an HDF5 "
+            "A batch front end for Luna's <code>tpx3dump</code> (Timepix3) and "
+            "<code>tpx4dump</code> (Timepix4), with an HDF5 "
             "inspector and TDC tagging.<br><br>"
             "It runs your own, unmodified Luna installation and contains no "
             "part of it.<br><br>Press F1 for help.")
+
+    def plain_command(self):
+        """The command every file gets when nothing is set."""
+        d = self.det
+        return f"{d.exe} process -i NAME{d.suffix} -o NAME.hdf5"
+
+    def tdc_after_run(self):
+        """Whether each finished file gets its TDC columns written. Never for
+        Timepix4: tpx4dump records no TDC edges to tag from."""
+        return self.cb_tdc.isChecked() and self.det is TPX3
 
     def advanced_bits(self):
         """Everything that deviates from the plain run, one item per setting."""
@@ -645,10 +774,11 @@ class MainWindow(QMainWindow):
             bits.append("renaming to " + tmpl)
         if not self.cb_skip.isChecked():
             bits.append("OVERWRITING existing output")
-        bits += [" ".join(b) for b in flag_bits(self.flag_values())]
+        bits += [" ".join(b) for b in flag_bits(self.flag_values(),
+                                                 detector=self.det.key)]
         if self.e_extra.text().strip():
             bits.append("extra arguments: " + self.e_extra.text().strip())
-        if self.cb_tdc.isChecked():
+        if self.tdc_after_run():
             bits.append("TDC columns after processing (" +
                         self.c_tdcref.currentText() + ")")
         return bits
@@ -660,7 +790,7 @@ class MainWindow(QMainWindow):
         self.b_adv.setProperty("adv", "on" if bits else "off")
         self.b_adv.setToolTip("\n".join(bits) if bits else
                               "Nothing set: every file runs as plain\n"
-                              "tpx3dump process -i NAME.tpx3 -o NAME.hdf5")
+                              + self.plain_command())
         self.b_adv.style().unpolish(self.b_adv)
         self.b_adv.style().polish(self.b_adv)
 
@@ -686,7 +816,7 @@ class MainWindow(QMainWindow):
         else:
             head = QLabel("Nothing set. Every queued file runs as")
             head.setProperty("intro", True)
-            cmd = QLabel("tpx3dump process -i NAME.tpx3 -o NAME.hdf5")
+            cmd = QLabel(self.plain_command())
             cmd.setProperty("code", True)
             lay.addWidget(head)
             lay.addWidget(cmd)
@@ -705,7 +835,7 @@ class MainWindow(QMainWindow):
                 self, APP_NAME,
                 "Reset every advanced setting to its default?\n\n"
                 "Output goes next to the input file, named after it, and no extra "
-                "flags are passed to tpx3dump.\n\n"
+                f"flags are passed to {self.det.exe}.\n\n"
                 "The Luna folder and the queue are left alone."
         ) != QMessageBox.StandardButton.Yes:
             return
@@ -733,6 +863,21 @@ class MainWindow(QMainWindow):
         bar = self.log_view.verticalScrollBar()
         bar.setValue(bar.maximum())
 
+    def save_log(self):
+        start = self.common_root() or Path.home()
+        name = time.strftime(f"{self.det.exe}_log_%Y-%m-%d_%H-%M.txt")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save the log", str(Path(start) / name),
+            "Text files (*.txt);;All files (*)", options=self.DLG)
+        if not path:
+            return
+        try:
+            Path(path).write_text(self.log_view.toPlainText() + "\n", encoding="utf-8")
+        except OSError as exc:
+            QMessageBox.critical(self, APP_NAME, f"Could not save the log:\n{exc}")
+            return
+        self.log(f"Log saved to {path}")
+
     # -- Luna install -----------------------------------------------------
 
     # On Windows the file dialogs are Explorer's own, so everything learnt
@@ -745,7 +890,7 @@ class MainWindow(QMainWindow):
 
     def pick_luna(self):
         d = QFileDialog.getExistingDirectory(
-            self, "Select the Luna installation folder (containing bin/tpx3dump)",
+            self, f"Select the {self.det.name} Luna folder (containing bin/{self.det.exe})",
             self.e_luna.text() or str(Path.home()), self.DLG)
         if d:
             self.e_luna.setText(d)
@@ -753,7 +898,7 @@ class MainWindow(QMainWindow):
 
     def refresh_backend(self):
         try:
-            self.backend = detect_backend(self.e_luna.text())
+            self.backend = detect_backend(self.e_luna.text(), self.det.exe)
         except Exception as exc:
             self.backend = Backend(detail=str(exc))
         ok = self.backend.usable
@@ -762,7 +907,7 @@ class MainWindow(QMainWindow):
         # The main tab gets one short line; the detail stays on Advanced.
         if ok:
             self.lbl_status.setText(
-                "Ready - tpx3dump runs " +
+                f"Ready - {self.det.exe} runs " +
                 ("through WSL." if self.backend.kind == "wsl" else "natively."))
             self.lbl_status.setProperty("role", "ok")
             self.b_setup.setVisible(False)
@@ -779,7 +924,7 @@ class MainWindow(QMainWindow):
         self.log("=" * 78)
         self.log("Backend: " + self.backend.kind + " -- " + self.backend.detail)
         if not self.backend.usable:
-            self.log("Cannot execute tpx3dump here. 'Preview commands' and "
+            self.log(f"Cannot execute {self.det.exe} here. 'Preview commands' and "
                      "'Export .sh' still work.")
             return
         for args in (["--version"], ["process", "--help"]):
@@ -796,11 +941,12 @@ class MainWindow(QMainWindow):
     # -- queue management -------------------------------------------------
 
     @staticmethod
-    def _scan_folder(path, recursive=True):
-        """Every .tpx3 file in one folder, sorted, case-insensitive suffix."""
+    def _scan_folder(path, recursive=True, suffix=".tpx3"):
+        """Every raw file (.tpx3, .tpx4) in one folder, sorted,
+        case-insensitive suffix."""
         p = Path(path)
         found = set()
-        for pat in ("*.tpx3", "*.TPX3"):
+        for pat in ("*" + suffix, "*" + suffix.upper()):
             try:
                 found.update(p.rglob(pat) if recursive else p.glob(pat))
             except Exception:
@@ -848,7 +994,8 @@ class MainWindow(QMainWindow):
             if not Path(entry["path"]).is_dir():
                 entry["count"] = -1          # drive unplugged, folder renamed...
                 continue
-            files = self._scan_folder(entry["path"], entry["recursive"])
+            files = self._scan_folder(entry["path"], entry["recursive"],
+                                      self.det.suffix)
             entry["count"] = len(files)
             new += self._add(files, origin=entry["path"], quiet=True)
         gone = self._prune_missing()
@@ -864,7 +1011,7 @@ class MainWindow(QMainWindow):
         if gone:
             msg += f", {gone} vanished file(s) dropped"
         if empty:
-            msg += f", {empty} folder(s) with no .tpx3"
+            msg += f", {empty} folder(s) with no {self.det.suffix}"
         if missing:
             msg += f", {missing} folder(s) NOT FOUND"
         self.log(msg)
@@ -909,9 +1056,10 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(dlg)
         lay.setSpacing(8)
 
-        head = QLabel("Every folder listed here is searched for .tpx3 files, and each "
-                      "one found is queued.\nWith the default output settings the "
-                      ".hdf5 is written next to its .tpx3, in that same folder.")
+        sfx = self.det.suffix
+        head = QLabel(f"Every folder listed here is searched for {sfx} files, and "
+                      "each one found is queued.\nWith the default output settings "
+                      f"the .hdf5 is written next to its {sfx}, in that same folder.")
         head.setProperty("muted", True)
         lay.addWidget(head)
 
@@ -1075,6 +1223,88 @@ class MainWindow(QMainWindow):
             state = Qt.CheckState.PartiallyChecked
         if getattr(self, "jhead", None):
             self.jhead.set_state(state)
+        self.sync_rerun_button()
+
+    def failed_jobs(self):
+        return [i for i, j in enumerate(self.jobs) if j.status == "failed"]
+
+    def sync_rerun_button(self):
+        """Rerun failed: live (and yellow) while the queue holds failures and
+        nothing is running; it says how many."""
+        b = getattr(self, "b_rerun", None)
+        if b is None:
+            return
+        n = len(self.failed_jobs())
+        running = self.b_stop.isEnabled()
+        b.setEnabled(bool(n) and not running)
+        b.setText(f"Rerun failed ({n})" if n else "Rerun failed")
+        b.setToolTip("Explain why these files failed, then process just them "
+                     "again" if n else "No file has failed")
+        state = "on" if n and not running else "off"
+        if b.property("adv") != state:
+            b.setProperty("adv", state)
+            b.style().unpolish(b)
+            b.style().polish(b)
+
+    def rerun_failed(self):
+        """Say why each file failed and whether that still holds, then run the
+        failed files -- and only them -- again."""
+        idx = self.failed_jobs()
+        if not idx:
+            return
+        # The template or output folder may have changed since: judge the
+        # names as they would be now.
+        self.recompute_outputs()
+        groups = {}
+        for i in idx:
+            job = self.jobs[i]
+            kind = job.fail.kind if job.fail else "unknown"
+            groups.setdefault(kind, []).append(job)
+
+        NL = chr(10)
+        parts, again = [], 0
+        for kind, jobs in groups.items():
+            f = jobs[0].fail
+            reason = f.reason if f else (jobs[0].note or "reason not recorded")
+            block = [f"{len(jobs)} x {reason}"]
+            if f:
+                block.append(f"What to change: {f.advice}")
+            still = sum(1 for j in jobs if still_fails(kind, j.dst))
+            again += still
+            if still:
+                block.append(f"NOT FIXED YET: {still} of these would fail again "
+                             "with the current settings.")
+            elif kind == "name_too_long":
+                block.append("Fixed: every name now fits.")
+            parts.append(NL.join(block))
+
+        partial = [self.jobs[i] for i in idx if self.job_clobbers(self.jobs[i])]
+        text = (f"{len(idx)} file(s) failed." + NL + NL +
+                (NL + NL).join(parts) + NL + NL +
+                (f"{len(partial)} of them left a partial .hdf5 behind; Overwrite "
+                 "will be ticked on those so they are redone." + NL + NL
+                 if partial else "") +
+                "Only the failed files are run; the rest of the queue is left "
+                "alone.")
+        box = QMessageBox(self)
+        box.setWindowTitle(APP_NAME)
+        box.setIcon(QMessageBox.Icon.Warning if again else QMessageBox.Icon.Question)
+        box.setText(text)
+        go = box.addButton(f"Rerun anyway ({len(idx)})" if again
+                           else f"Rerun {len(idx)} file(s)",
+                           QMessageBox.ButtonRole.AcceptRole)
+        cancel = box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(cancel if again else go)
+        box.exec()
+        if box.clickedButton() is not go:
+            return
+        for job in partial:
+            job.overwrite = True
+        self.job_model.overwrite_column_changed()
+        self.sync_overwrite_header()
+        self.log(f"Rerunning {len(idx)} failed file(s)"
+                 + (f", Overwrite ticked on {len(partial)}" if partial else "") + ".")
+        self.run_queue(only=idx)
 
     def toggle_all_overwrite(self):
         """Header checkbox: tick every row that has an output to overwrite."""
@@ -1130,19 +1360,21 @@ class MainWindow(QMainWindow):
 
     # -- command construction --------------------------------------------
 
-    def tpx3dump_args(self, job, backend=None, translate=None):
+    def dump_args(self, job, backend=None, translate=None):
         """`translate` maps a path-valued flag; the backend's own by default."""
         b = backend or self.backend
         args = ["process", "-i", b.translate(job.src), "-o", b.translate(job.dst)]
-        args += flag_args(self.flag_values(), translate or b.translate)
+        args += flag_args(self.flag_values(), translate or b.translate,
+                          self.det.key)
         extra = self.e_extra.text().strip()
         if extra:
             args += shlex.split(extra, posix=True)
         return args
 
-    def runnable_jobs(self):
+    def runnable_jobs(self, indices=None):
         out = []
-        for i, job in enumerate(self.jobs):
+        for i in (range(len(self.jobs)) if indices is None else indices):
+            job = self.jobs[i]
             if job.status == "CLASH":
                 continue
             if (self.cb_skip.isChecked() and not job.overwrite
@@ -1161,12 +1393,12 @@ class MainWindow(QMainWindow):
             return
         self.log("=" * 78)
         self.log(f"{len(self.jobs)} job(s), backend = {self.backend.kind}")
-        b = self.backend if self.backend.usable else Backend("native", "tpx3dump")
+        b = self.backend if self.backend.usable else Backend("native", self.det.exe)
         for job in self.jobs:
             if job.status == "CLASH":
                 self.log("# SKIPPED (name clash): " + job.src.name)
                 continue
-            self.log(b.display(self.tpx3dump_args(job, b)))
+            self.log(b.display(self.dump_args(job, b)))
         self.log()
 
     def export_sh(self):
@@ -1176,11 +1408,13 @@ class MainWindow(QMainWindow):
         if not self.flags_ok():
             return
         path, _ =QFileDialog.getSaveFileName(
-            self, "Save a shell script to run on Linux", "run_tpx3dump.sh",
+            self, "Save a shell script to run on Linux", f"run_{self.det.exe}.sh",
             "Shell script (*.sh)", "", self.DLG)
         if not path:
             return
-        b = Backend("native", "tpx3dump")
+        exe = self.det.exe
+        var = exe.upper()                  # TPX3DUMP / TPX4DUMP
+        b = Backend("native", exe)
 
         def posix(p):
             return win_to_wsl(str(p)) if IS_WINDOWS else str(p)
@@ -1200,13 +1434,13 @@ class MainWindow(QMainWindow):
             return shlex.quote(pp)
 
         lines = ["#!/usr/bin/env bash",
-                 "# Generated by " + APP_NAME + " (Qt) -- run this on the Linux machine.",
+                 "# Generated by " + APP_NAME + " -- run this on the Linux machine.",
                  "#",
-                 "# 1. Put the Luna bin/ directory on PATH, or set TPX3DUMP below",
-                 "#    to the absolute path of the tpx3dump executable.",
+                 f"# 1. Put the Luna bin/ directory on PATH, or set {var} below",
+                 f"#    to the absolute path of the {exe} executable.",
                  "# 2. Edit IN_ROOT / OUT_ROOT to match where the data lives there.",
                  "set -euo pipefail", "",
-                 "TPX3DUMP=${TPX3DUMP:-tpx3dump}",
+                 f"{var}=${{{var}:-{exe}}}",
                  "IN_ROOT=" + shlex.quote(in_root),
                  "OUT_ROOT=" + shlex.quote(out_root), ""]
         for job in self.jobs:
@@ -1215,9 +1449,9 @@ class MainWindow(QMainWindow):
                 continue
             src = under(job.src, in_root, "IN_ROOT")
             dst = under(job.dst, out_root, "OUT_ROOT")
-            tail = [shlex.quote(a) for a in self.tpx3dump_args(job, b, posix)[5:]]
+            tail = [shlex.quote(a) for a in self.dump_args(job, b, posix)[5:]]
             lines.append('mkdir -p "$(dirname ' + dst + ')"')
-            lines.append(" ".join(['"$TPX3DUMP"', "process", "-i", src, "-o", dst] + tail))
+            lines.append(" ".join([f'"${var}"', "process", "-i", src, "-o", dst] + tail))
         try:
             Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
         except Exception as exc:
@@ -1227,12 +1461,16 @@ class MainWindow(QMainWindow):
 
     # -- running (QProcess, one job at a time) ----------------------------
 
-    def run_queue(self):
+    def run_queue(self, only=None):
+        """Run the queue, or with `only` (row indices) just those rows --
+        Rerun failed uses that, leaving every other row's status as it is."""
+        if only is not None and not isinstance(only, (list, tuple)):
+            only = None                 # clicked(bool) from the Run button
         self.refresh_backend()
         if not self.backend.usable:
             QMessageBox.critical(
                 self, APP_NAME,
-                "tpx3dump cannot be executed here.\n\n" + self.backend.detail +
+                f"{self.det.exe} cannot be executed here.\n\n" + self.backend.detail +
                 "\n\nSet the Luna folder on the Advanced tab, or use its "
                 "'Export .sh' button to run this queue on a Linux machine.")
             return
@@ -1253,11 +1491,13 @@ class MainWindow(QMainWindow):
                 f"{len(clashes)} input(s) map to a duplicated output name and will "
                 "be skipped.\nAdd {measurement} or {datetime} to the template to "
                 "make the names unique.")
-        for i, job in enumerate(self.jobs):
+        pool = range(len(self.jobs)) if only is None else only
+        for i in pool:
+            job = self.jobs[i]
             if job.status in ("done", "failed", "skipped"):
-                job.status, job.note = "queued", ""
+                job.status, job.note, job.fail = "queued", "", None
                 self.job_model.row_changed(i)
-        todo = self.runnable_jobs()
+        todo = self.runnable_jobs(pool)
         if not todo:
             self.log("Nothing to do - every output already exists. "
                      "Tick 'Overwrite' in the queue to redo one anyway.")
@@ -1280,6 +1520,7 @@ class MainWindow(QMainWindow):
         self.pb.setTextVisible(True)
         self.pb.setVisible(True)
         self.lbl_prog.setText(f"0 / {self.total}")
+        self.sync_rerun_button()
         self.log("=" * 78)
         self.log(f"Running {self.total} job(s) via {self.backend.kind}")
         self.t_all = time.time()
@@ -1318,7 +1559,7 @@ class MainWindow(QMainWindow):
                     "WSL mounts fixed disks automatically but leaves removable "
                     "ones (USB sticks, card readers, some external drives) "
                     "alone, so the " + plural + " simply not there as far as "
-                    "tpx3dump is concerned -- it would skip every file and then "
+                    + self.det.exe + " is concerned -- it would skip every file and then "
                     "crash with 'index out of bounds'." + NL + NL +
                     "Mount it now? This needs no password, and lasts until WSL "
                     "next shuts down.") != QMessageBox.StandardButton.Yes:
@@ -1343,7 +1584,7 @@ class MainWindow(QMainWindow):
                 NL.join("    " + f for f in shown) +
                 (NL + "    ..." if len(missing_files) > len(shown) else "") +
                 NL + NL +
-                "tpx3dump would skip them and then crash. Check the drive is "
+                + self.det.exe + " would skip them and then crash. Check the drive is "
                 "still connected, or copy the data to an internal disk.")
             self.log("Run cancelled -- WSL cannot see " +
                      str(len(missing_files)) + " input file(s).")
@@ -1373,7 +1614,7 @@ class MainWindow(QMainWindow):
         self.jtable.scrollTo(self.job_model.index(idx, 0))
         try:
             job.dst.parent.mkdir(parents=True, exist_ok=True)
-            argv = self.backend.argv(self.tpx3dump_args(job))
+            argv = self.backend.argv(self.dump_args(job))
         except Exception as exc:
             self._job_done(idx, -1, str(exc))
             return
@@ -1383,6 +1624,7 @@ class MainWindow(QMainWindow):
         self.log("$ " + " ".join(shlex.quote(a) for a in argv))
         self.t_job = time.time()
 
+        self._reset_output()
         p = QProcess(self)
         p.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         p.readyReadStandardOutput.connect(self._read_proc)
@@ -1391,12 +1633,105 @@ class MainWindow(QMainWindow):
         self.proc = p
         p.start(argv[0], argv[1:])
 
+    # Luna's output can arrive far faster than a text widget takes it line by
+    # line: tpx4dump prints one long error for every packet it drops, which on
+    # a real file is a flood. Appending and scrolling per line then starves
+    # the event loop, the window stops responding, the pipe fills and the
+    # converter blocks on it -- the whole run looks frozen. So lines are
+    # buffered and written to the log in one go every LOG_FLUSH_MS, and once
+    # REPEATS_SHOWN lines of one kind have been shown for a file, the rest are
+    # counted instead and summed up when the file is done. Even the counting
+    # is done a slice of at most DIGEST_MS at a time, so a burst of a million
+    # lines never holds the window up for more than a moment.
+    LOG_FLUSH_MS = 100
+    REPEATS_SHOWN = 20
+    DIGEST_MS = 15
+
+    def _reset_output(self):
+        self._out_tail = ""            # an incomplete last line, to be continued
+        self._out_queue = deque()      # complete lines not looked at yet
+        self._out_lines = []           # waiting for the next flush
+        self._out_seen = {}            # line signature -> how many seen
+        self._out_hidden = {}          # signature -> first line not shown
+        # For naming the cause if the run fails: the last lines (a panic and
+        # its message come at the very end) and any early error-looking line.
+        self._out_recent = deque(maxlen=40)
+        self._out_alarm = []
+
     def _read_proc(self):
         if not self.proc:
             return
-        chunk = bytes(self.proc.readAllStandardOutput()).decode("utf-8", "replace")
-        for line in chunk.splitlines():
-            self.log("  " + line.rstrip())
+        text = self._out_tail + bytes(self.proc.readAllStandardOutput()).decode(
+            "utf-8", "replace")
+        lines = text.split("\n")
+        self._out_tail = lines.pop()
+        if lines:
+            idle = not self._out_queue
+            self._out_queue.extend(lines)
+            if idle:
+                QTimer.singleShot(0, self._digest)
+
+    def _digest(self, budget_ms=DIGEST_MS):
+        """Look at queued lines for up to budget_ms, then let the window
+        breathe; carries on from the event loop while lines remain."""
+        q = self._out_queue
+        stop = None if budget_ms is None else time.perf_counter() + budget_ms / 1000.0
+        while q:
+            for _ in range(min(500, len(q))):
+                self._take_line(q.popleft())
+            if stop is not None and time.perf_counter() > stop:
+                break
+        if q:
+            QTimer.singleShot(0, self._digest)
+        if not self._flush_timer.isActive():
+            self._flush_timer.start(self.LOG_FLUSH_MS)
+
+    def _take_line(self, line):
+        line = line.rstrip()
+        if not line:
+            return
+        # Lines of one kind differ only in their numbers: timestamps, packet
+        # fields, line numbers. The head of the line with digits blanked out
+        # tells them apart cheaply.
+        sig = line[:120].translate(_DIGITS)
+        n = self._out_seen.get(sig, 0) + 1
+        self._out_seen[sig] = n
+        self._out_recent.append(line)
+        if (n == 1 and len(self._out_alarm) < 12
+                and _ALARM.search(line) and "tpx4_unpacker" not in line):
+            self._out_alarm.append(line)
+        if n <= self.REPEATS_SHOWN:
+            self._out_lines.append("  " + line)
+        elif n == self.REPEATS_SHOWN + 1:
+            self._out_hidden[sig] = line
+            self._out_lines.append(f"  ... more lines like this are being counted, "
+                                   f"not shown (after the first {self.REPEATS_SHOWN})")
+
+    def _flush_output(self):
+        if self._out_lines:
+            self.log("\n".join(self._out_lines))
+            self._out_lines = []
+
+    def _end_output(self):
+        """The job is over: last partial line, the rest of the buffer, and a
+        count of every kind of line that was hidden. Returns the lines kept
+        for diagnosing a failure."""
+        self._flush_timer.stop()
+        if self._out_tail:
+            self._out_queue.append(self._out_tail)
+            self._out_tail = ""
+        self._digest(budget_ms=None)          # whatever is left, all of it
+        for sig, example in self._out_hidden.items():
+            hidden = self._out_seen[sig] - self.REPEATS_SHOWN
+            # Drop Luna's "[source:line] [thread: ...]" prefix, so the summary
+            # shows the message itself -- the error kind -- not the location.
+            msg = _LOG_PREFIX.sub("", example)
+            self._out_lines.append(f"  ({hidden:,} more lines like this were not "
+                                   f"shown: {msg[:160]}...)")
+        self._flush_output()
+        kept = self._out_alarm + list(self._out_recent)
+        self._reset_output()
+        return kept
 
     def _proc_error(self, idx, err):
         # Only FailedToStart needs handling here; every other error is followed
@@ -1411,27 +1746,28 @@ class MainWindow(QMainWindow):
             return                      # finished() and errorOccurred() can both fire
         self._settled = True
         if self.proc is not None:
+            self._read_proc()            # whatever is still in the pipe
             self.proc.deleteLater()
             self.proc = None
+        output = self._end_output()
         job = self.jobs[idx]
-        dt = time.time() - self.t_job
+        dt = time.time() - getattr(self, "t_job", time.time())
+        job.fail = None
 
         if self.stopping and code != 0:
             job.status, job.note = "queued", "cancelled"
-        elif err:
-            job.status, job.note = "failed", err
-            self.failed += 1
-        elif code == 0 and job.dst.exists():
+        elif not err and code == 0 and job.dst.exists():
             size = human_size(job.dst.stat().st_size)
             job.status, job.note = "done", f"{size} in {dt:.1f}s"
             self.log(f"  OK  {size} in {dt:.1f} s")
             self.ok += 1
             job.note += self._tag_output(job)
-        elif code == 0:
-            job.status, job.note = "failed", "exit 0 but no output file"
-            self.failed += 1
         else:
-            job.status, job.note = "failed", f"exit code {code}"
+            job.fail = diagnose(output, code, job.dst, job.src, job.ctx, err)
+            job.status, job.note = "failed", job.fail.reason
+            self.log(f"  FAILED  {job.fail.reason}"
+                     + ("" if err else f"  (exit code {code})"))
+            self.log(f"  What to change: {job.fail.advice}")
             self.failed += 1
 
         self.job_model.row_changed(idx)
@@ -1449,7 +1785,7 @@ class MainWindow(QMainWindow):
         the queue moves on. Never fails the job: the .hdf5 tpx3dump wrote is
         good either way, so a TDC problem is reported and the run continues.
         """
-        if not self.cb_tdc.isChecked():
+        if not self.tdc_after_run():
             return ""
         ref = self.c_tdcref.currentText()
         try:
@@ -1471,20 +1807,35 @@ class MainWindow(QMainWindow):
         self.log(f"Finished: {self.ok} ok, {self.failed} failed, "
                  f"{self.total - self.done} not run, "
                  f"{time.time() - self.t_all:.1f} s total.")
+        if self.failed:
+            # One line per cause, so a long batch's failures can be read off
+            # here instead of being hunted down file by file.
+            causes = {}
+            for job in self.jobs:
+                if job.status == "failed" and job.fail:
+                    causes.setdefault(job.fail.kind, []).append(job)
+            for jobs in causes.values():
+                f = jobs[0].fail
+                alike = len({j.fail.reason for j in jobs}) > 1
+                self.log(f"  {len(jobs)} x {f.reason}" + (" (or similar)" if alike else ""))
+                self.log(f"      What to change: {f.advice}")
+            self.log("  Fix that, then press 'Rerun failed' above the Overwrite "
+                     "column to process just these files again.")
         self.log()
 
     def stop_run(self):
         self.stopping = True
         self.todo = []
-        self.log("Stop requested - terminating the current tpx3dump...")
+        self.log(f"Stop requested - terminating the current {self.det.exe}...")
         if self.proc is not None:
             self.proc.kill()
 
     # -- settings ---------------------------------------------------------
 
     def save_settings(self):
+        self._store_detector_state()            # Luna folder, batch folders
         self.cfg.update({
-            "luna_dir": self.e_luna.text(), "out_mode": self.out_mode(),
+            "detector": self.det.key, "out_mode": self.out_mode(),
             "out_dir": self.e_outdir.text(), "template": self.e_template.text(),
             "skip_existing": self.cb_skip.isChecked(),
             **self.flag_values(),
@@ -1492,8 +1843,6 @@ class MainWindow(QMainWindow):
             "tdc_reference": self.c_tdcref.currentText(),
             "extra": self.e_extra.text(),
             "theme": self.theme_name,
-            "folders": [{"path": f["path"], "recursive": f["recursive"]}
-                        for f in self.folders],
         })
         save_config(self.cfg)
 
@@ -1613,6 +1962,12 @@ class MainWindow(QMainWindow):
                                    "file size: " + human_size(path.stat().st_size)]
                 if dict(f.attrs):
                     lines.append("root attributes: " + str(dict(f.attrs)))
+                det, judged = self._file_detector(f)
+                self.h5_det = det
+                lines.append(f"detector: {det.name}" + (
+                    "  (judged from its ToT values)" if judged else
+                    "  (no ToT to judge by -- assuming the detector selected "
+                    "on the Process tab)"))
 
                 def visit(name, obj):
                     if isinstance(obj, h5py.Dataset):
@@ -1637,19 +1992,21 @@ class MainWindow(QMainWindow):
                     head = ph[: min(200000, ph.shape[0])]
                     toa = head["toa"].astype("float64")
                     lines.append(f"   toa range (first {len(head):,} rows): "
-                                 f"{toa.min():.0f} .. {toa.max():.0f}")
+                                 f"{toa.min():.0f} .. {toa.max():.0f}  "
+                                 f"(units of {det.toa_seconds:g} s)")
                     lines.append(f"   x range {head['x'].min()}..{head['x'].max()}   "
                                  f"y range {head['y'].min()}..{head['y'].max()}")
                     if "tof" in (ph.dtype.names or ()):
                         valid = int((head["tof"] >= 0).sum())
                         lines.append(f"   tof: {valid:,} of {len(head):,} rows are >= 0 "
                                      + ("(ToF was computed)" if valid else
-                                        "(no TDC reference -> ToF unset)"))
+                                        "(tpx4dump computes no ToF)" if det is TPX4
+                                        else "(no TDC reference -> ToF unset)"))
                 if "Clusters" in f and f["Clusters"].shape[0]:
                     cl = f["Clusters"][: min(200000, f["Clusters"].shape[0])]
                     lines.append(f"   mean cluster size (first {len(cl):,}): "
                                  f"{cl['size'].mean():.2f}")
-                lines.extend(self._tdc_summary(f, np))
+                lines.extend(self._tdc_summary(f, np, det))
                 if "ExposureTimeBoundaries" in f:
                     etb = f["ExposureTimeBoundaries"][:]
                     lines.append(f"exposure time boundaries: {len(etb)} entries, "
@@ -1672,16 +2029,24 @@ class MainWindow(QMainWindow):
             return
         try:
             DatasetViewer(self.h5_listed, item.text(), h5py, np,
-                          self.mono, self).show()
+                          self.mono, getattr(self, "h5_det", self.det),
+                          self).show()
         except Exception as exc:
             QMessageBox.critical(self, APP_NAME, str(exc))
 
-    def _tdc_summary(self, f, np):
+    def _file_detector(self, f):
+        """(Detector, judged) for an open file: judged from its ToT values,
+        else the detector selected on the Process tab."""
+        det = detect_from_file(f)
+        return (det, True) if det else (self.det, False)
+
+    def _tdc_summary(self, f, np, det=TPX3):
         """The TDC block of the Inspect summary: edges, rate, columns."""
         events = read_tdc_events(f, np)
         if events is None:
-            return ["TDC            /" + TDC_DATASET + " absent "
-                    "(tpx3dump predates TDC support, or none was recorded)"]
+            why = ("tpx4dump writes no TDC data" if det is TPX4 else
+                   "tpx3dump predates TDC support, or none was recorded")
+            return ["TDC            /" + TDC_DATASET + " absent (" + why + ")"]
         raw_n = f[TDC_DATASET].shape[0]
         if len(events) == 0:
             return ["TDC            no edges recorded"]
@@ -1890,11 +2255,8 @@ class MainWindow(QMainWindow):
                     d = f["PixelHits"]
                     n = min(CAP, d.shape[0])
                     img = self._accumulate_xy(d, n, np, "x", "y")
-                    im = ax.imshow(img, origin="lower", aspect="equal")
-                    self._style_colorbar(
-                        fig.colorbar(im, ax=ax, label="hits / pixel"), styled)
-                    ax.set(title=f"Hitmap, pixels -- {n:,} hits",
-                           xlabel="x (pixels)", ylabel="y (pixels)")
+                    self._draw_hitmap(fig, ax, img, styled, np, "hits / pixel",
+                                      f"Hitmap, pixels -- {n:,} hits")
                 else:
                     if "Clusters" not in f or not f["Clusters"].shape[0]:
                         QMessageBox.information(
@@ -1905,12 +2267,9 @@ class MainWindow(QMainWindow):
                     n = min(CAP, d.shape[0])
                     if what == "cmap":
                         img = self._accumulate_xy(d, n, np, "cx", "cy")
-                        im = ax.imshow(img, origin="lower", aspect="equal")
-                        self._style_colorbar(
-                            fig.colorbar(im, ax=ax, label="clusters / pixel"),
-                            styled)
-                        ax.set(title=f"Hitmap, clusters -- {n:,} clusters",
-                               xlabel="x (pixels)", ylabel="y (pixels)")
+                        self._draw_hitmap(fig, ax, img, styled, np,
+                                          "clusters / pixel",
+                                          f"Hitmap, clusters -- {n:,} clusters")
                     elif what == "tot":
                         # Clusters/ctot is the *peak pixel* ToT of the cluster,
                         # not its total -- verified against PixelHits: ctot ==
@@ -1918,32 +2277,34 @@ class MainWindow(QMainWindow):
                         # the reference file, and it saturates at exactly the
                         # single-pixel maximum. Clusters/sum_tot is the total;
                         # that is the "stot" plot below.
-                        ctot = self._gather(d, n, np, "ctot").astype("float64")
-                        # One bin per 40 MHz tick: ctot is quantised to 25 ns,
-                        # so this is the finest binning that carries no
-                        # aliasing. Edges run to max + one step, so the largest
-                        # value lands inside the last bin instead of falling
-                        # off the end as it would with arange(0, max, 25).
-                        edges = np.arange(0.0, float(ctot.max()) + TOT_LSB_NS,
-                                          TOT_LSB_NS)
+                        det, _judged = self._file_detector(f)
+                        ctot = (self._gather(d, n, np, "ctot").astype("float64")
+                                * (det.tot_seconds * 1e9))          # -> ns
+                        # One bin per ToT step (25 ns on Timepix3), the finest
+                        # binning that carries no aliasing -- or a whole
+                        # number of steps once that would pass TOT_MAX_BINS,
+                        # as it does for Timepix4's 0.195 ns step.
+                        edges, step = tot_bin_edges(float(ctot.max()),
+                                                    det.tot_lsb_ns, TOT_MAX_BINS, np)
                         ax.hist(ctot, bins=edges, histtype="step",
                                 **self._series_colour(styled))
                         ax.set(title=f"Peak-pixel ToT -- {n:,} clusters",
-                               xlabel="ToT (ns)", ylabel="Counts (-)",
-                               yscale="log")
+                               xlabel=f"ToT (ns)   ({step:g} ns bins)",
+                               ylabel="Counts (-)", yscale="log")
                     elif what == "stot":
                         # The cluster's summed ToT: a deposited-charge proxy,
                         # unlike ctot which saturates once the charge starts
                         # spreading to neighbouring pixels instead of driving
                         # the central one higher.
-                        stot = self._gather(d, n, np, "sum_tot").astype("float64")
-                        hi = float(stot.max())
-                        # Still a whole number of 25 ns ticks, just a coarser
-                        # one: sum_tot runs to ~227 us and the native tick
-                        # would be ~9000 bins.
-                        k = max(1, round(hi / TOT_LSB_NS / STOT_TARGET_BINS))
-                        step = k * TOT_LSB_NS
-                        edges = np.arange(0.0, hi + step, step)
+                        det, _judged = self._file_detector(f)
+                        stot = (self._gather(d, n, np, "sum_tot").astype("float64")
+                                * (det.tot_seconds * 1e9))          # -> ns
+                        # Still a whole number of ToT steps, just a coarser
+                        # one: sum_tot runs to ~227 us and the native 25 ns
+                        # tick would be ~9000 bins.
+                        edges, step = tot_bin_edges(float(stot.max()),
+                                                    det.tot_lsb_ns,
+                                                    STOT_TARGET_BINS, np)
                         ax.hist(stot, bins=edges, histtype="step",
                                 **self._series_colour(styled))
                         ax.set(title=f"Cluster total ToT -- {n:,} clusters",
@@ -2040,23 +2401,55 @@ class MainWindow(QMainWindow):
         return np.concatenate(parts) if parts else np.array([])
 
     def _accumulate_xy(self, dset, n, np, fx, fy, step=2_000_000):
-        """2D histogram built in slices so huge files do not blow up memory."""
-        size = 0
+        """2D histogram built in slices so huge files do not blow up memory.
+
+        Width and height follow the data separately: Timepix4 is 448 x 512,
+        and a square image would show 64 columns that cannot hold a hit.
+        Never smaller than one Timepix3 chip.
+        """
+        h = w = 0
         img = None
         for i in range(0, n, step):
             chunk = dset[i:min(i + step, n)]
             x = chunk[fx].astype("int64")
             y = chunk[fy].astype("int64")
-            need = int(max(x.max(initial=0), y.max(initial=0))) + 1
-            if img is None or need > size:
-                new = max(need, 256, size)
-                grown = np.zeros((new, new), dtype="int64")
+            need_w = int(x.max(initial=0)) + 1
+            need_h = int(y.max(initial=0)) + 1
+            if img is None or need_w > w or need_h > h:
+                new_w, new_h = max(need_w, 256, w), max(need_h, 256, h)
+                grown = np.zeros((new_h, new_w), dtype="int64")
                 if img is not None:
-                    grown[:size, :size] = img
-                img, size = grown, new
-            flat = np.bincount(y * size + x, minlength=size * size)
-            img += flat.reshape(size, size)
+                    grown[:h, :w] = img
+                img, h, w = grown, new_h, new_w
+            flat = np.bincount(y * w + x, minlength=h * w)
+            img += flat.reshape(h, w)
         return img if img is not None else np.zeros((256, 256), dtype="int64")
+
+    def _draw_hitmap(self, fig, ax, img, styled, np, unit, title):
+        """imshow a hitmap, keeping a few runaway pixels off the colour scale.
+
+        One hot or reference pixel can hold a third of all hits (a Timepix4
+        corner pixel firing at the laser's 190 kHz, for one) and a linear scale
+        up to it paints everything else as zero. When the hottest pixel is far
+        above the 99.9th percentile of the hit pixels, the scale stops there,
+        the colour bar gets an arrow, and the title names what was clipped.
+        """
+        hit = img[img > 0]
+        vmax = float(hit.max()) if hit.size else 1.0
+        note = ""
+        if hit.size:
+            cap = float(np.percentile(hit, HITMAP_CLIP_PERCENTILE))
+            if vmax > HITMAP_CLIP_FACTOR * cap:
+                over = int((img > cap).sum())
+                y0, x0 = np.unravel_index(int(img.argmax()), img.shape)
+                note = (f"\n{over} pixel(s) above the colour scale -- hottest "
+                        f"({x0}, {y0}): {int(img.max()):,}")
+                vmax = cap
+        im = ax.imshow(img, origin="lower", aspect="equal", vmin=0, vmax=vmax)
+        self._style_colorbar(
+            fig.colorbar(im, ax=ax, label=unit,
+                         extend="max" if note else "neither"), styled)
+        ax.set(title=title + note, xlabel="x (pixels)", ylabel="y (pixels)")
 
     # -- window geometry ---------------------------------------------------
 

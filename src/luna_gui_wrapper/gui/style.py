@@ -307,11 +307,6 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
     QScrollBar::handle:horizontal:hover {{ background: {pal['outline']}; }}
     QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; width: 0; }}
     QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
-    QFrame[hline="true"] {{
-        border: none;
-        border-top: 1px solid {pal['outline_variant']};
-        max-height: 1px;
-    }}
     /* A 1px-wide frame has no room to paint a border, so fill it instead. */
     QFrame[vline="true"] {{
         border: none;

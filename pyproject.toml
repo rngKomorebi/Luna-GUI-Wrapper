@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "luna-tpx3-gui"
+name = "luna-gui-wrapper"
 dynamic = ["version"]
-description = "Browse-and-batch Qt front end for ASI Luna's tpx3dump (Timepix3 .tpx3 -> HDF5)"
+description = "Browse-and-batch Qt front end for ASI Luna's tpx3dump and tpx4dump (Timepix3 / Timepix4 raw data -> HDF5)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
@@ -26,7 +26,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Physics",
 ]
-keywords = ["timepix3", "tpx3", "tpx3dump", "luna", "hdf5", "detector", "qt"]
+keywords = ["timepix3", "timepix4", "tpx3", "tpx4", "tpx3dump", "tpx4dump", "luna", "hdf5", "detector", "qt"]
 # Only PySide6 is needed to start the GUI and run batches.
 dependencies = [
     "PySide6>=6.5",
@@ -47,25 +47,25 @@ dev = [
     "pre-commit",
 ]
 
-# Console script -- lets users launch with `luna-tpx3-gui` after `pip install .`
+# Console script -- lets users launch with `luna-gui-wrapper` after `pip install .`
 # A console (not gui) script on purpose: a startup error stays readable.
 [project.scripts]
-luna-tpx3-gui = "luna_tpx3_gui.main:main"
+luna-gui-wrapper = "luna_gui_wrapper.main:main"
 
 [project.urls]
-Homepage = "https://github.com/rngKomorebi/Luna-Tpx3-GUI"
-Repository = "https://github.com/rngKomorebi/Luna-Tpx3-GUI"
-Issues = "https://github.com/rngKomorebi/Luna-Tpx3-GUI/issues"
-Changelog = "https://github.com/rngKomorebi/Luna-Tpx3-GUI/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/rngKomorebi/Luna-GUI-Wrapper"
+Repository = "https://github.com/rngKomorebi/Luna-GUI-Wrapper"
+Issues = "https://github.com/rngKomorebi/Luna-GUI-Wrapper/issues"
+Changelog = "https://github.com/rngKomorebi/Luna-GUI-Wrapper/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
-version = {attr = "luna_tpx3_gui.__version__"}
+version = {attr = "luna_gui_wrapper.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"luna_tpx3_gui" = ["icon/*.png", "icon/*.ico"]
+"luna_gui_wrapper" = ["icon/*.png", "icon/*.ico"]
 
 [tool.ruff]
 line-length = 100

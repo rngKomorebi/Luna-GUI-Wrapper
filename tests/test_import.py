@@ -5,14 +5,14 @@ import sys
 
 
 def test_version():
-    import luna_tpx3_gui
+    import luna_gui_wrapper
 
-    assert isinstance(luna_tpx3_gui.__version__, str)
-    assert luna_tpx3_gui.__version__.count(".") >= 1
+    assert isinstance(luna_gui_wrapper.__version__, str)
+    assert luna_gui_wrapper.__version__.count(".") >= 1
 
 
 def test_public_tdc_api():
-    import luna_tpx3_gui as g
+    import luna_gui_wrapper as g
 
     for name in ("read_tdcs", "add_tdc_columns", "read_with_tdc"):
         assert callable(getattr(g, name))
@@ -25,9 +25,9 @@ def test_core_does_not_import_qt():
     Qt into this one.
     """
     code = (
-        "import sys, luna_tpx3_gui, luna_tpx3_gui.functions.backend, "
-        "luna_tpx3_gui.functions.naming, luna_tpx3_gui.functions.tdc, "
-        "luna_tpx3_gui.functions.config, luna_tpx3_gui.functions.plotting; "
+        "import sys, luna_gui_wrapper, luna_gui_wrapper.functions.backend, "
+        "luna_gui_wrapper.functions.naming, luna_gui_wrapper.functions.tdc, "
+        "luna_gui_wrapper.functions.config, luna_gui_wrapper.functions.plotting; "
         "assert not any(m.startswith('PySide6') for m in sys.modules), "
         "[m for m in sys.modules if m.startswith('PySide6')]"
     )

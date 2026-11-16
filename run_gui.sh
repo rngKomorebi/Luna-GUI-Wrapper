@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch Luna Tpx3 GUI (Qt 6) on Linux.
+# Launch Luna GUI Wrapper (Qt 6) on Linux.
 #
 # Picks an interpreter in this order:
 #   $PYTHON  ->  .venv beside this script  ->  the venv install-linux.sh makes
@@ -9,17 +9,18 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/luna-tpx3-gui-qt"
+data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/luna-gui-wrapper"
+old_data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/luna-tpx3-gui-qt"  # before the rename
 
 py=""
-for cand in "${PYTHON:-}" "$here/.venv/bin/python" "$data_dir/venv/bin/python"; do
+for cand in "${PYTHON:-}" "$here/.venv/bin/python" "$data_dir/venv/bin/python" "$old_data_dir/venv/bin/python"; do
     if [ -n "$cand" ] && [ -x "$cand" ]; then py="$cand"; break; fi
 done
 [ -n "$py" ] || py="$(command -v python3 || true)"
 
 die() {
     if command -v zenity >/dev/null 2>&1; then
-        zenity --error --no-markup --width=520 --title="Luna Tpx3 GUI (Qt)" --text="$1"
+        zenity --error --no-markup --width=520 --title="Luna GUI Wrapper" --text="$1"
     elif command -v kdialog >/dev/null 2>&1; then
         kdialog --error "$1"
     elif command -v xmessage >/dev/null 2>&1; then

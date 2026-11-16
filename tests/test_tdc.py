@@ -2,7 +2,7 @@
 
 import pytest
 
-from luna_tpx3_gui.functions import tdc
+from luna_gui_wrapper.functions import tdc
 
 np = pytest.importorskip("numpy")
 

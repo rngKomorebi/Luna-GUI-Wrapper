@@ -1,6 +1,6 @@
 """The tpx3dump flag table: argv construction and value checks."""
 
-from luna_tpx3_gui.functions.flags import (FLAGS, flag_args, flag_bits,
+from luna_gui_wrapper.functions.flags import (FLAGS, flag_args, flag_bits,
                                            flag_problems)
 
 
@@ -35,6 +35,20 @@ def test_problems():
                          "num_time_bins": "3.5", "eps_s": "one"})
     assert len(bad) == 4
     assert any(p.startswith("--eps-t needs a number with a unit") for p in bad)
+
+
+def test_only_the_detectors_flags_are_passed():
+    vals = {"layout": "quad", "input_format": "nikhef", "eps_t": "200ns"}
+    assert flag_args(vals, detector="tpx3") == ["--layout", "quad",
+                                                "--eps-t", "200ns"]
+    assert flag_args(vals, detector="tpx4") == ["--input-format", "nikhef",
+                                                "--eps-t", "200ns"]
+
+
+def test_max_delay_must_be_below_one():
+    assert flag_problems({"max_delay": "0.5"}, "tpx4") == []
+    assert len(flag_problems({"max_delay": "1.5"}, "tpx4")) == 1
+    assert flag_problems({"max_delay": "1.5"}, "tpx3") == []   # not a tpx3 flag
 
 
 def test_keys_and_flags_are_unique():

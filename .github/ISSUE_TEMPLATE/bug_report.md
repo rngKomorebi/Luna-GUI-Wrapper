@@ -27,10 +27,10 @@ and any error dialog text.
 ## Environment
 
 - OS: [e.g. Windows 11 + WSL Ubuntu 24.04, or Ubuntu 22.04]
-- Started via: Desktop/menu shortcut / `run_gui.bat` / `run_gui.sh` / `luna-tpx3-gui` (Python version: ...)
-- Luna Tpx3 GUI version: [e.g. 0.1.0] — `python -c "import luna_tpx3_gui; print(luna_tpx3_gui.__version__)"`
+- Started via: Desktop/menu shortcut / `run_gui.bat` / `run_gui.sh` / `luna-gui-wrapper` (Python version: ...)
+- Luna GUI Wrapper version: [e.g. 0.1.0] — `python -c "import luna_gui_wrapper; print(luna_gui_wrapper.__version__)"`
 - Backend line from **Advanced → Check install** (e.g. `OK via WSL (Ubuntu): ...`)
-- `tpx3dump --version` output:
+- `tpx3dump --version` / `tpx4dump --version` output:
 
 ## Additional context
 

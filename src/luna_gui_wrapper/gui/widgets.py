@@ -19,13 +19,6 @@ def vline():
     return f
 
 
-def hline():
-    f = QFrame()
-    f.setProperty("hline", True)
-    f.setFrameShape(QFrame.Shape.HLine)
-    return f
-
-
 def row(*widgets, spacing=6, margins=(0, 0, 0, 0)):
     """A QWidget holding a horizontal row; None means 'stretch here'."""
     w = QWidget()

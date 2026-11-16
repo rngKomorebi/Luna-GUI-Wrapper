@@ -79,7 +79,11 @@ class JobModel(QAbstractTableModel):
                     return "No output file exists yet - nothing to overwrite."
                 return ("This .hdf5 already exists.\n"
                         "Tick to rewrite it, leave it clear to skip this file.")
-            return f"in:  {job.src}\nout: {job.dst}"
+            tip = f"in:  {job.src}\nout: {job.dst}"
+            if job.status == "failed" and job.fail:
+                tip = (f"Failed: {job.fail.reason}\n"
+                       f"What to change: {job.fail.advice}\n\n" + tip)
+            return tip
         return None
 
     def flags(self, index):
@@ -132,7 +136,8 @@ class FolderModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
-            return self.HEADERS[section]
+            # The count is of the current detector's raw files.
+            return self.w.det.suffix if section == 1 else self.HEADERS[section]
         return None
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):

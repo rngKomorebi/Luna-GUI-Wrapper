@@ -2,7 +2,7 @@
 
 import json
 
-from luna_tpx3_gui.functions.naming import (DEFAULT_TEMPLATE, measurement_context,
+from luna_gui_wrapper.functions.naming import (DEFAULT_TEMPLATE, measurement_context,
                                             migrate_template, render_name, sanitize)
 
 

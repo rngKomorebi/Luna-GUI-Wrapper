@@ -1,13 +1,13 @@
-"""Sphinx configuration for Luna Tpx3 GUI documentation."""
+"""Sphinx configuration for Luna GUI Wrapper documentation."""
 
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../src"))
 
-from luna_tpx3_gui import __version__  # noqa: E402
+from luna_gui_wrapper import __version__  # noqa: E402
 
-project = "Luna Tpx3 GUI"
+project = "Luna GUI Wrapper"
 copyright = "2026, Sergei Kulkov"
 author = "Sergei Kulkov"
 release = __version__
@@ -19,9 +19,7 @@ extensions = [
     "myst_parser",
 ]
 
-templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-html_static_path = ["_static"]
 html_theme = "sphinx_rtd_theme"
 
 source_suffix = {
@@ -29,7 +27,7 @@ source_suffix = {
     ".md": "markdown",
 }
 
-# The README's in-page links (#linux, #windows ...) become heading anchors.
+# Links to headings (installation.md#linux ...) resolve to heading anchors.
 myst_heading_anchors = 3
 
 napoleon_google_docstring = True
