@@ -1,0 +1,252 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overview &mdash; Luna GUI Wrapper 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="installation.html" />
+    <link rel="prev" title="Luna GUI Wrapper" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#timepix3-and-timepix4">Timepix3 and Timepix4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#layout">Layout</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Overview</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/intro.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
+<p>Luna GUI Wrapper is a desktop front end for batch-processing Timepix raw data
+with ASI Luna’s converters: <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> for Timepix3 <code class="docutils literal notranslate"><span class="pre">.tpx3</span></code> files and
+<code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code> for Timepix4 <code class="docutils literal notranslate"><span class="pre">.tpx4</span></code> files. Point it at one folder or twenty; it
+finds every raw file underneath, names each output after the measurement it
+came from, and runs the converter over the whole lot, instead of you typing</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tpx3dump<span class="w"> </span>process<span class="w"> </span>-i<span class="w"> </span>INPUT_NAME.tpx3<span class="w"> </span>-o<span class="w"> </span>OUTPUT_NAME.hdf5<span class="w">   </span><span class="c1"># or tpx4dump ... .tpx4</span>
+</pre></div>
+</div>
+<p>once per file, with the right paths, the right ASI filename and the right
+working directory.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>Luna is not included.</strong> This project is only a graphical wrapper around
+ASI Luna’s command-line tools; it contains no part of Luna and cannot convert
+a single file by itself. You need your own licensed Luna installation from
+ASI (Amsterdam Scientific Instruments). The GUI runs its <strong>unmodified</strong>
+<code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> / <code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code> as a subprocess, through the documented command-line
+interface, so every <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> is exactly what the converter would have written
+had you typed the command yourself.</p>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Job</p></th>
+<th class="head"><p>Done by</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Decoding raw data, clustering, writing the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code></p></td>
+<td><p><strong>Luna’s <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> / <code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code></strong>: your copy, not shipped here</p></td>
+</tr>
+<tr class="row-odd"><td><p>Finding the files, naming the outputs, queueing, running, logging</p></td>
+<td><p>this GUI</p></td>
+</tr>
+<tr class="row-even"><td><p>Running the Linux-only converter from Windows, through WSL</p></td>
+<td><p>this GUI</p></td>
+</tr>
+<tr class="row-odd"><td><p>Reading the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> back: summary, plots, TDC columns</p></td>
+<td><p>this GUI (h5py; Luna is not involved)</p></td>
+</tr>
+</tbody>
+</table>
+<p>Built with Qt 6 (PySide6).</p>
+<p><img alt="The Process tab, backend ready" src="_images/process-tab.png" /></p>
+<section id="timepix3-and-timepix4">
+<h2>Timepix3 and Timepix4<a class="headerlink" href="#timepix3-and-timepix4" title="Link to this heading"></a></h2>
+<p>Pick the chip with <strong>Detector</strong> on the Process tab. Each detector keeps its
+own Luna folder and batch folders, and the Inspect tab tells the two kinds of
+<code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> apart by their ToT values. Both converters write the same datasets
+(<code class="docutils literal notranslate"><span class="pre">PixelHits</span></code>, <code class="docutils literal notranslate"><span class="pre">Clusters</span></code>, <code class="docutils literal notranslate"><span class="pre">ExposureTimeBoundaries</span></code>) with the same columns;
+what differs:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Timepix3</p></th>
+<th class="head"><p>Timepix4</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Luna converter, raw files</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code>, <code class="docutils literal notranslate"><span class="pre">.tpx3</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code>, <code class="docutils literal notranslate"><span class="pre">.tpx4</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Pixels (55 µm pitch)</p></td>
+<td><p>256 × 256 per chip</p></td>
+<td><p>448 × 512</p></td>
+</tr>
+<tr class="row-even"><td><p>ToA in the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code></p></td>
+<td><p>units of 1e-13 s (100 fs)</p></td>
+<td><p>units of 1e-16 s (100 as)</p></td>
+</tr>
+<tr class="row-odd"><td><p>ToT in the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code></p></td>
+<td><p>ns, in 25 ns steps</p></td>
+<td><p>units of 1e-16 s, in 0.195 ns steps</p></td>
+</tr>
+<tr class="row-even"><td><p>TDC edges, ToF, TDC columns</p></td>
+<td><p>yes</p></td>
+<td><p>no, see below</p></td>
+</tr>
+<tr class="row-odd"><td><p>Converter-only flags</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--layout</span></code>, <code class="docutils literal notranslate"><span class="pre">--n-phases</span></code>, <code class="docutils literal notranslate"><span class="pre">--tof-tdc-reference</span></code>, clustering algorithm, timewalk</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--input-format</span></code> (asi / nikhef), <code class="docutils literal notranslate"><span class="pre">--max-delay</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-gray-decoding</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>The units are those of Luna’s own unit-conversion example. Code reading these
+files must know which detector wrote them.</p>
+<p><strong>Why no TDC on Timepix4?</strong> It is a limit of Luna, not of this GUI. Luna
+v0.4.4’s <code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code> has no <code class="docutils literal notranslate"><span class="pre">--tof-tdc-reference</span></code> option, and the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> it
+writes holds no <code class="docutils literal notranslate"><span class="pre">/TDCEvents</span></code>, so there are no trigger edges to compute ToF or
+TDC columns from. If a later Luna adds them, the GUI’s TDC tools can be enabled for
+Timepix4 too. Setting up Timepix4 is in
+<a class="reference internal" href="usage.html#timepix4"><span class="std std-ref">Usage</span></a>.</p>
+</section>
+<section id="layout">
+<h2>Layout<a class="headerlink" href="#layout" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tab</p></th>
+<th class="head"><p>What it is for</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Process</strong></p></td>
+<td><p>The whole everyday job: pick the detector, add input, press Run, watch the log.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Advanced</strong></p></td>
+<td><p>Luna folder, output placement, renaming, converter flags, command preview, script export. All optional.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Inspect HDF5</strong></p></td>
+<td><p>Look inside a result: datasets, counts, ToA range, TDC edges, the rows themselves, six plots, and the button that writes the TDC columns. See <a class="reference internal" href="inspect.html"><span class="std std-doc">Inspect HDF5</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Help</strong> in the menu bar above the tabs (or F1) opens a Help window: what every
+tab, option and converter flag does, the name-template placeholders, the
+file’s columns and units, TDC, and troubleshooting, with a Find box. Its
+topics are also listed in the menu itself.</p>
+<p>Left alone, the Process tab runs exactly</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tpx3dump<span class="w"> </span>process<span class="w"> </span>-i<span class="w"> </span>NAME.tpx3<span class="w"> </span>-o<span class="w"> </span>NAME.hdf5
+</pre></div>
+</div>
+<p>per queued file (<code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code> on Timepix4), writing the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> next to its raw
+file. Any deviation turns the <strong>Advanced flags</strong> button on the Process tab
+yellow, and a click lists it all: relocation, renaming, overwriting, and every
+flag passed. Silently renamed or relocated output is the one surprise worth
+never having.</p>
+<p>The theme is in the <strong>View</strong> menu (light or dark), remembered between runs.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Luna GUI Wrapper" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

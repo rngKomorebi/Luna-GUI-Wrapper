@@ -1,0 +1,7 @@
+luna\_gui\_wrapper.functions.detectors module
+=============================================
+
+.. automodule:: luna_gui_wrapper.functions.detectors
+   :members:
+   :show-inheritance:
+   :undoc-members:

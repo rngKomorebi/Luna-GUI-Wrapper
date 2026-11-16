@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.detectors &mdash; Luna GUI Wrapper 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=e259d695"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.detectors</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for luna_gui_wrapper.functions.detectors</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Timepix3 and Timepix4: which Luna tool, which raw files, which units.</span>
+
+<span class="sd">Luna ships one converter per detector -- tpx3dump for .tpx3, tpx4dump for</span>
+<span class="sd">.tpx4 -- with the same `process -i ... -o ...` command line and the same</span>
+<span class="sd">HDF5 layout (PixelHits, Clusters, ExposureTimeBoundaries, same fields). What</span>
+<span class="sd">differs is the time base: per Luna's own "Read data, Unit Conversion"</span>
+<span class="sd">example, ToA counts 1e-13 s on Timepix3 but 1e-16 s on Timepix4, and ToT is</span>
+<span class="sd">whole nanoseconds (25 ns steps) on Timepix3 but the ToA tick on Timepix4.</span>
+<span class="sd">Anything that reads times or ToT out of a file has to know which it is.</span>
+
+<span class="sd">Qt-free.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+
+<div class="viewcode-block" id="Detector">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.detectors.html#luna_gui_wrapper.functions.detectors.Detector">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Detector</span><span class="p">:</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>              <span class="c1"># "tpx3" | "tpx4": settings keys, Flag.detectors</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>             <span class="c1"># "Timepix3"</span>
+    <span class="n">exe</span><span class="p">:</span> <span class="nb">str</span>              <span class="c1"># the Luna converter's name</span>
+    <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span>           <span class="c1"># raw file extension</span>
+    <span class="n">toa_seconds</span><span class="p">:</span> <span class="nb">float</span>    <span class="c1"># one ToA / ctoa / timestamp unit, in seconds</span>
+    <span class="n">tot_seconds</span><span class="p">:</span> <span class="nb">float</span>    <span class="c1"># one ToT / ctot / sum_tot unit, in seconds</span>
+    <span class="n">tot_lsb_ns</span><span class="p">:</span> <span class="nb">float</span>     <span class="c1"># the ToT quantisation step, in ns</span></div>
+
+
+
+<span class="n">TPX3</span> <span class="o">=</span> <span class="n">Detector</span><span class="p">(</span><span class="s2">"tpx3"</span><span class="p">,</span> <span class="s2">"Timepix3"</span><span class="p">,</span> <span class="s2">"tpx3dump"</span><span class="p">,</span> <span class="s2">".tpx3"</span><span class="p">,</span>
+                <span class="n">toa_seconds</span><span class="o">=</span><span class="mf">1e-13</span><span class="p">,</span> <span class="n">tot_seconds</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span> <span class="n">tot_lsb_ns</span><span class="o">=</span><span class="mf">25.0</span><span class="p">)</span>
+<span class="c1"># The ToT step is what tpx4dump writes: every value in the example files is a</span>
+<span class="c1"># multiple of 1 953 125 units of 1e-16 s.</span>
+<span class="n">TPX4</span> <span class="o">=</span> <span class="n">Detector</span><span class="p">(</span><span class="s2">"tpx4"</span><span class="p">,</span> <span class="s2">"Timepix4"</span><span class="p">,</span> <span class="s2">"tpx4dump"</span><span class="p">,</span> <span class="s2">".tpx4"</span><span class="p">,</span>
+                <span class="n">toa_seconds</span><span class="o">=</span><span class="mf">1e-16</span><span class="p">,</span> <span class="n">tot_seconds</span><span class="o">=</span><span class="mf">1e-16</span><span class="p">,</span> <span class="n">tot_lsb_ns</span><span class="o">=</span><span class="mf">0.1953125</span><span class="p">)</span>
+
+<span class="n">DETECTORS</span> <span class="o">=</span> <span class="p">{</span><span class="n">d</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="n">TPX3</span><span class="p">,</span> <span class="n">TPX4</span><span class="p">)}</span>
+
+
+<div class="viewcode-block" id="field_units">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.detectors.html#luna_gui_wrapper.functions.detectors.field_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">field_units</span><span class="p">(</span><span class="n">det</span><span class="p">:</span> <span class="n">Detector</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Column -&gt; what its numbers mean, for one detector's files."""</span>
+    <span class="k">if</span> <span class="n">det</span> <span class="ow">is</span> <span class="n">TPX3</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"toa"</span><span class="p">:</span> <span class="s2">"100 fs ticks (1e-13 s)"</span><span class="p">,</span>
+            <span class="s2">"ctoa"</span><span class="p">:</span> <span class="s2">"100 fs ticks (1e-13 s)"</span><span class="p">,</span>
+            <span class="s2">"timestamp"</span><span class="p">:</span> <span class="s2">"100 fs ticks (1e-13 s)"</span><span class="p">,</span>
+            <span class="s2">"tof"</span><span class="p">:</span> <span class="s2">"100 fs ticks since the --tof-tdc-reference edge; -1 = unset"</span><span class="p">,</span>
+            <span class="s2">"tdc"</span><span class="p">:</span> <span class="s2">"100 fs ticks, timestamp of the reference edge"</span><span class="p">,</span>
+            <span class="s2">"tdc_dt"</span><span class="p">:</span> <span class="s2">"100 fs ticks since the reference edge; -1 = no edge yet"</span><span class="p">,</span>
+            <span class="s2">"tot"</span><span class="p">:</span> <span class="s2">"ns, in steps of 25 ns"</span><span class="p">,</span>
+            <span class="s2">"ctot"</span><span class="p">:</span> <span class="s2">"ns, the cluster's peak-pixel ToT"</span><span class="p">,</span>
+            <span class="s2">"sum_tot"</span><span class="p">:</span> <span class="s2">"ns, the cluster's total ToT"</span><span class="p">,</span>
+            <span class="s2">"x"</span><span class="p">:</span> <span class="s2">"pixel column"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">:</span> <span class="s2">"pixel row"</span><span class="p">,</span>
+            <span class="s2">"cx"</span><span class="p">:</span> <span class="s2">"pixel column"</span><span class="p">,</span> <span class="s2">"cy"</span><span class="p">:</span> <span class="s2">"pixel row"</span><span class="p">,</span>
+            <span class="s2">"size"</span><span class="p">:</span> <span class="s2">"pixels in the cluster"</span><span class="p">,</span>
+            <span class="s2">"tdc_type"</span><span class="p">:</span> <span class="s2">"1 TDC1Rising, 2 TDC1Falling, 3 TDC2Rising, 4 TDC2Falling"</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"toa"</span><span class="p">:</span> <span class="s2">"100 as ticks (1e-16 s)"</span><span class="p">,</span>
+        <span class="s2">"ctoa"</span><span class="p">:</span> <span class="s2">"100 as ticks (1e-16 s)"</span><span class="p">,</span>
+        <span class="s2">"tof"</span><span class="p">:</span> <span class="s2">"-1: tpx4dump has no ToF option"</span><span class="p">,</span>
+        <span class="s2">"tot"</span><span class="p">:</span> <span class="s2">"100 as ticks (1e-16 s), in steps of 0.195 ns"</span><span class="p">,</span>
+        <span class="s2">"ctot"</span><span class="p">:</span> <span class="s2">"100 as ticks (1e-16 s), the cluster's peak-pixel ToT"</span><span class="p">,</span>
+        <span class="s2">"sum_tot"</span><span class="p">:</span> <span class="s2">"100 as ticks (1e-16 s), the cluster's total ToT"</span><span class="p">,</span>
+        <span class="s2">"x"</span><span class="p">:</span> <span class="s2">"pixel column, 0-447"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">:</span> <span class="s2">"pixel row, 0-511"</span><span class="p">,</span>
+        <span class="s2">"cx"</span><span class="p">:</span> <span class="s2">"pixel column, 0-447"</span><span class="p">,</span> <span class="s2">"cy"</span><span class="p">:</span> <span class="s2">"pixel row, 0-511"</span><span class="p">,</span>
+        <span class="s2">"size"</span><span class="p">:</span> <span class="s2">"pixels in the cluster"</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="detect_from_file">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.detectors.html#luna_gui_wrapper.functions.detectors.detect_from_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">detect_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">sample</span><span class="o">=</span><span class="mi">100_000</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Which detector wrote this open h5py file? A Detector, or None.</span>
+
+<span class="sd">    Decided from ToT, the one field whose scale separates the two: a Timepix3</span>
+<span class="sd">    pixel ToT is at most 1023 x 25 ns = 25 575, while any non-zero Timepix4</span>
+<span class="sd">    ToT is at least 1 953 125. None when the file holds no non-zero ToT to</span>
+<span class="sd">    judge by (empty, or a --raw-only file whose ToT is all zero).</span>
+<span class="sd">    """</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">field_name</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"PixelHits"</span><span class="p">,</span> <span class="s2">"tot"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"Clusters"</span><span class="p">,</span> <span class="s2">"ctot"</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">f</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">f</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">continue</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ds</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span> <span class="ow">or</span> <span class="n">field_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[:</span> <span class="nb">min</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])][</span><span class="n">field_name</span><span class="p">]</span>
+        <span class="n">nz</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">vals</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nz</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">TPX4</span> <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">nz</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1_000_000</span> <span class="k">else</span> <span class="n">TPX3</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

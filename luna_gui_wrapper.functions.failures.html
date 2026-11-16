@@ -1,0 +1,185 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.failures module &mdash; Luna GUI Wrapper 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="luna_gui_wrapper.functions.flags module" href="luna_gui_wrapper.functions.flags.html" />
+    <link rel="prev" title="luna_gui_wrapper.functions.detectors module" href="luna_gui_wrapper.functions.detectors.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">luna_gui_wrapper</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="luna_gui_wrapper.html">luna_gui_wrapper package</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.add_tdc_columns"><code class="docutils literal notranslate"><span class="pre">add_tdc_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_tdcs"><code class="docutils literal notranslate"><span class="pre">read_tdcs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_with_tdc"><code class="docutils literal notranslate"><span class="pre">read_with_tdc()</span></code></a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="luna_gui_wrapper.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">luna_gui_wrapper</a></li>
+          <li class="breadcrumb-item"><a href="luna_gui_wrapper.html">luna_gui_wrapper package</a></li>
+          <li class="breadcrumb-item"><a href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.failures module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/luna_gui_wrapper.functions.failures.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-luna_gui_wrapper.functions.failures">
+<span id="luna-gui-wrapper-functions-failures-module"></span><h1>luna_gui_wrapper.functions.failures module<a class="headerlink" href="#module-luna_gui_wrapper.functions.failures" title="Link to this heading"></a></h1>
+<p>Why a converter run failed, and what to change before running it again.</p>
+<p>Qt-free. The GUI hands over the end of the converter’s output plus the job’s
+paths; diagnose() picks the known cause out of it. A cause tied to the current
+settings (an output name that is too long) can be checked again later with
+still_fails(), so a rerun can warn when nothing has been changed yet.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.Failure">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.failures.</span></span><span class="sig-name descname"><span class="pre">Failure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reason</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">advice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/failures.html#Failure"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.failures.Failure" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.Failure.advice">
+<span class="sig-name descname"><span class="pre">advice</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#luna_gui_wrapper.functions.failures.Failure.advice" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.Failure.kind">
+<span class="sig-name descname"><span class="pre">kind</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#luna_gui_wrapper.functions.failures.Failure.kind" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.Failure.reason">
+<span class="sig-name descname"><span class="pre">reason</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#luna_gui_wrapper.functions.failures.Failure.reason" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.diagnose">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.failures.</span></span><span class="sig-name descname"><span class="pre">diagnose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lines</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">src</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#luna_gui_wrapper.functions.failures.Failure" title="luna_gui_wrapper.functions.failures.Failure"><span class="pre">Failure</span></a></span></span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/failures.html#diagnose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.failures.diagnose" title="Link to this definition"></a></dt>
+<dd><p>Name the cause of one failed run.</p>
+<p>lines: the converter’s last output lines (plus any error lines seen
+earlier); code: its exit code (-1 if it never ran); err: a message from
+the GUI side when there is no exit code to go on.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.name_length">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.failures.</span></span><span class="sig-name descname"><span class="pre">name_length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/failures.html#name_length"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.failures.name_length" title="Link to this definition"></a></dt>
+<dd><p>Length of the file name as the stricter of the two file systems counts
+it: characters for NTFS, UTF-8 bytes for Linux.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.failures.still_fails">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.failures.</span></span><span class="sig-name descname"><span class="pre">still_fails</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kind</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/failures.html#still_fails"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.failures.still_fails" title="Link to this definition"></a></dt>
+<dd><p>Would a cause tied to the settings hit again with the job as it is now?
+Only the name length can be checked ahead of a run; anything else is
+left to the rerun itself.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="luna_gui_wrapper.functions.detectors.html" class="btn btn-neutral float-left" title="luna_gui_wrapper.functions.detectors module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="luna_gui_wrapper.functions.flags.html" class="btn btn-neutral float-right" title="luna_gui_wrapper.functions.flags module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
