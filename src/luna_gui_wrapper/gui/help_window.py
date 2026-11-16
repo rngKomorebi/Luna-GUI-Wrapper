@@ -4,7 +4,7 @@ Opened from the Help menu or F1. It is one window, hidden rather than
 destroyed on close, so it reopens where the reader left off.
 
 The flag reference and the column units are generated from the same tables
-the Advanced tab and the row viewer use (FLAG_GROUPS, FIELD_UNITS), so they
+the Advanced tab and the row viewer use (FLAG_GROUPS, field_units), so they
 cannot drift apart. The prose is written here. The page is rebuilt on a theme
 change, since rich text takes its colours from the HTML, not the stylesheet.
 """
@@ -21,19 +21,20 @@ from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit,
 from .. import __version__
 from ..functions.common import APP_NAME
 from ..functions.config import CONFIG_PATH
+from ..functions.detectors import TPX3, TPX4, field_units
 from ..functions.flags import FLAG_GROUPS
 from ..functions.naming import DEFAULT_TEMPLATE
 from ..functions.plotting import PLOT_TITLES
-from .dataset_view import FIELD_UNITS
 from .widgets import row
 
 # (anchor, title) in page order; the list on the left is built from this.
 SECTIONS = [
     ("start", "Getting started"),
+    ("detectors", "Timepix3 and Timepix4"),
     ("process", "Process tab"),
     ("advanced", "Advanced tab"),
     ("naming", "Name templates"),
-    ("flags", "tpx3dump flags"),
+    ("flags", "Luna flags"),
     ("inspect", "Inspect HDF5 tab"),
     ("file", "What is in the file"),
     ("tdc", "TDC"),
@@ -42,29 +43,23 @@ SECTIONS = [
 ]
 
 PLACEHOLDERS = [
-    ("{stem}", "fCqk_000000", "the .tpx3 filename"),
+    ("{stem}", "fCqk_000000", "the raw filename (.tpx3 / .tpx4)"),
     ("{measurement}", "Measurement_Aug_07_2026_12h52m45s", "measurement folder"),
     ("{campaign}", "data_DCR_07.08.2026", "the folder above that"),
     ("{date} {time} {datetime}", "2026-08-07, 12-52-45", "StartDateTime"),
-    ("{duration}", "10s", "StopDateTime - StartDateTime"),
     ("{comment}", "DCR-0V-gain", "CommentAtTimeOfMeasurement, or comment.txt"),
-    ("{bias}", "50", "BiasVoltage"),
-    ("{exposure} {ntrig} {frames} {period}", "0.01, 100, 100, 0.1",
-     "ExposureTime, nTriggers, NumberOfFrames, TriggerPeriod"),
-    ("{polarity} {trigmode}", "Positive, AUTOTRIGSTART_TIMERSTOP",
-     "Polarity, TriggerMode"),
-    ("{size} {chip} {chipboard}", "256x256, W0028_H11, 2000050",
-     "detector layout and board info"),
-    ("{thr_coarse} {thr_fine}", "6, 246",
-     "threshold DACs — may not follow a threshold changed mid-session"),
 ]
 
 PLOT_NOTES = {
-    "hitmap": ("PixelHits x, y", "hits per pixel, including cluster spread"),
-    "cmap": ("Clusters cx, cy", "each cluster counted once, at its centroid"),
-    "tot": ("Clusters ctot", "peak-pixel ToT; 25 ns bins, log y"),
-    "stot": ("Clusters sum_tot", "total ToT of the cluster — the "
-             "deposited-charge proxy; ~300 bins snapped to 25 ns, log y"),
+    "hitmap": ("PixelHits x, y", "hits per pixel, including cluster spread; "
+               "sized to the chip (448 x 512 on Timepix4); a few runaway "
+               "pixels are kept off the colour scale and named in the title"),
+    "cmap": ("Clusters cx, cy", "each cluster counted once, at its centroid; "
+             "same colour-scale rule"),
+    "tot": ("Clusters ctot", "peak-pixel ToT in ns; one bin per ToT step on "
+            "Timepix3 (25 ns), a whole number of steps on Timepix4; log y"),
+    "stot": ("Clusters sum_tot", "total ToT of the cluster in ns — the "
+             "deposited-charge proxy; ~300 bins snapped to ToT steps, log y"),
     "csize": ("Clusters size", "pixels per cluster, 0-40; anything above is "
               "counted in the title"),
     "tdc": ("Clusters ctoa - TDCEvents", "time since the reference edge, over "
@@ -82,6 +77,11 @@ TROUBLE = [
      "WSL cannot see the drive the data is on — normal for USB sticks. "
      "Answer <b>Yes</b> when the GUI offers to mount it."),
     ("UNC path rejected", "Map <code>\\\\server\\share</code> to a drive letter first."),
+    ("<code>H5Fcreate(): unable to create file</code>, "
+     "<i>output name too long</i>",
+     "A file name may be at most 255 characters, and <code>{comment}</code> "
+     "can take a long <code>comment.txt</code> into it. Shorten the name "
+     "template, then press <b>Rerun failed</b>."),
     ("Files report <i>skipped - output exists</i>",
      "That is <b>Skip files whose output already exists</b>. Tick "
      "<b>Overwrite</b> on the rows to redo, or untick the option."),
@@ -127,6 +127,19 @@ def _prose(text):
     return escape(text).replace(" -- ", " — ")
 
 
+# Which converter accepts a flag, as the flag tables show it.
+_FOR = {("tpx3", "tpx4"): "both", ("tpx3",): "Timepix3", ("tpx4",): "Timepix4"}
+
+
+def _units_html(pal):
+    """Column meanings for both detectors side by side."""
+    u3, u4 = field_units(TPX3), field_units(TPX4)
+    cols = list(u3) + [k for k in u4 if k not in u3]
+    return _table([[f"<code>{escape(k)}</code>", escape(u3.get(k, "")),
+                    escape(u4.get(k, ""))] for k in cols],
+                  ["Column", "Timepix3", "Timepix4"], pal, ("18%", "41%"))
+
+
 def _flags_html(pal):
     parts = []
     for title, group in FLAG_GROUPS:
@@ -141,47 +154,48 @@ def _flags_html(pal):
                          + "</span>")
             rows.append([f"<code>{escape(f.flag)}</code>",
                          f"<code>{escape(f.default)}</code>" if f.default else "",
-                         what])
+                         _FOR.get(f.detectors, ""), what])
         parts.append(f"<h3>{escape(title)}</h3>"
-                     + _table(rows, ["Flag", "Default", "What it does"], pal,
-                              ("32%", "12%")))
+                     + _table(rows, ["Flag", "Default", "For", "What it does"], pal,
+                              ("28%", "11%", "11%")))
     return "".join(parts)
 
 
 def help_html(pal) -> str:
     """The whole help page as HTML, coloured for palette `pal`."""
-    flag_count = sum(len(g) for _t, g in FLAG_GROUPS)
     ph = _table([[f"<code>{escape(p)}</code>", escape(e), escape(s)]
                  for p, e, s in PLACEHOLDERS],
                 ["Placeholder", "Example", "From"], pal, ("30%", "32%"))
     plots = _table([[f"<b>{escape(PLOT_TITLES[k])}</b>", escape(src), escape(what)]
                     for k, (src, what) in PLOT_NOTES.items()],
                    ["Plot", "Reads", "Shows"], pal, ("24%", "26%"))
-    units = _table([[f"<code>{escape(k)}</code>", escape(v)]
-                    for k, v in FIELD_UNITS.items()],
-                   ["Column", "Meaning / unit"], pal, ("24%",))
+    units = _units_html(pal)
     trouble = _table([[s, fix] for s, fix in TROUBLE],
                      ["Symptom", "Cause and fix"], pal, ("38%",))
 
     return f"""
 <a name="start"></a><h2 class="first">Getting started</h2>
-<p>The GUI runs your own Luna <code>tpx3dump</code> over a batch of
-<code>.tpx3</code> files and writes one <code>.hdf5</code> per file. Luna is not
-included; you point the GUI at your installation once. On Windows it runs the
-Linux build of <code>tpx3dump</code> through WSL.</p>
+<p>The GUI runs your own Luna over a batch of raw files and writes one
+<code>.hdf5</code> per file: <code>tpx3dump</code> for Timepix3
+(<code>.tpx3</code>), <code>tpx4dump</code> for Timepix4 (<code>.tpx4</code>).
+Luna is not included; you point the GUI at your installation once per
+detector. On Windows it runs Luna's Linux build through WSL.</p>
 <ol>
-<li><b>Advanced</b> → <b>Luna installation</b> → <b>Browse...</b> to the folder
-containing <code>bin/tpx3dump</code> → <b>Check install</b>. A one-time step.</li>
+<li><b>Process</b> → <b>Detector</b>: pick <b>Timepix3</b> or
+<b>Timepix4</b>.</li>
+<li><b>Advanced</b> → <b>Luna installation</b> → <b>Browse...</b> to the Luna
+folder for that detector → <b>Check install</b>. A one-time step.</li>
 <li><b>Process</b> → <b>Add folders...</b> → <b>Run queue</b>.</li>
 <li>Double-click a finished row to open its <code>.hdf5</code> on
 <b>Inspect HDF5</b>.</li>
 </ol>
 <p>Left alone, every queued file is processed with exactly</p>
 <pre>tpx3dump process -i NAME.tpx3 -o NAME.hdf5</pre>
+<p>or, on Timepix4,</p>
+<pre>tpx4dump process -i NAME.tpx4 -o NAME.hdf5</pre>
 <p>with the output written beside the input. Anything else you set turns the
 <b>Advanced flags</b> button on the Process tab yellow, so a non-default run is
-never a surprise. Your
-<code>.tpx3</code> files are never moved, renamed or modified.</p>
+never a surprise. Your raw files are never moved, renamed or modified.</p>
 <h3>Paths, the Explorer way</h3>
 <ul>
 <li>On Windows every <b>Browse...</b> opens Explorer's own dialog: Alt+D jumps
@@ -194,16 +208,49 @@ its path.</li>
 (Enter opens a typed path).</li>
 </ul>
 
+<a name="detectors"></a><h2>Timepix3 and Timepix4</h2>
+<p>The <b>Detector</b> switch at the top of the Process tab picks which Luna
+converter runs and which raw files a folder scan queues.</p>
+<ul>
+<li><b>Separate setups.</b> Each detector keeps its own Luna folder and its
+own batch folders, so switching swaps the whole setup; switch back and the
+other one is as you left it. The switch is locked while a run is going.</li>
+<li><b>Flags.</b> The converters share most options. The Advanced tab shows
+only the current detector's flags, and only those are passed; a value set for
+the other one is kept for when you switch back. See <a href="#flags">Luna
+flags</a>, whose tables say which detector each flag is for.</li>
+<li><b>Same file layout, different units.</b> Both write
+<code>PixelHits</code>, <code>Clusters</code> and
+<code>ExposureTimeBoundaries</code> with the same columns, but Timepix4 counts
+ToA <i>and</i> ToT in 1e-16 s where Timepix3 counts ToA in 1e-13 s and ToT in
+ns. The Inspect tab tells the two apart by the file's ToT values and reads
+each in its own units; see <a href="#file">What is in the file</a>.</li>
+<li><b>No TDC on Timepix4.</b> <code>tpx4dump</code> writes no
+<code>TDCEvents</code> and has no <code>--tof-tdc-reference</code>, so the TDC
+columns, the ToF column and the TDC plot are Timepix3 only.</li>
+<li><b>Luna folder.</b> ASI's Timepix4 archive unpacks into a folder holding a
+folder of the same name; picking either works, as does the <code>bin</code>
+folder itself.</li>
+<li><b>A noisy log is normal.</b> <code>tpx4dump</code> logs an
+<code>[ERROR] ... Packet is ignored</code> line for every packet it drops —
+hundreds of thousands for one file. The file is still written. The log shows
+the first 20 lines of each kind and counts the rest, with one summary line per
+kind when the file is done, so the window stays responsive.</li>
+</ul>
+
 <a name="process"></a><h2>Process tab</h2>
 <p>The everyday job: add input, press Run, watch the log.</p>
 <ul>
-<li><b>Status line</b>: whether <code>tpx3dump</code> can run here, and how
+<li><b>Detector</b>: <b>Timepix3</b> or <b>Timepix4</b>; see
+<a href="#detectors">Timepix3 and Timepix4</a>.</li>
+<li><b>Status line</b>: whether the detector's converter can run here, and how
 (native or WSL). <b>Set up Luna...</b> appears until it can.</li>
 <li><b>Advanced flags</b>: grey while every file runs as the plain command,
 yellow with a count as soon as anything differs: output placement, renaming,
 overwriting, each flag passed. Click it for the full list, one setting per
 row.</li>
-<li><b>Add folders...</b> queues every <code>.tpx3</code> under one or more folders;
+<li><b>Add folders...</b> queues every <code>.tpx3</code> (or, on Timepix4,
+<code>.tpx4</code>) under one or more folders;
 <b>Search subfolders</b> reaches the files inside each measurement's
 <code>raw</code> folder. <b>Browse...</b> opens Explorer's own folder picker
 (Alt+D for its address bar). Or paste several paths, one per line, or drag
@@ -218,9 +265,21 @@ remembered between sessions.</li>
 <li><b>Files found</b>: each input with the output it will get and its status
 (<i>queued, running, done, failed, skipped, CLASH</i>). Tick <b>Overwrite</b> on
 a row to redo a file whose output exists; the box in the column header ticks
-them all. Double-click a row to inspect its output.</li>
+them all. Double-click a row to inspect its output. Hover a failed row for
+why it failed and what to change.</li>
+<li><b>Rerun failed (N)</b>, above the Overwrite column, turns yellow once a
+file has failed. It lists the causes with what to change, warns if a cause
+still holds with the current settings (e.g. an output name still over 255
+characters), ticks <b>Overwrite</b> where a failed run left a partial
+<code>.hdf5</code>, and then runs only the failed files.</li>
 <li><b>Run queue</b> processes the files one at a time; <b>Stop</b> ends the
-current file and the rest. The log shows <code>tpx3dump</code>'s own output.</li>
+current file and the rest.</li>
+<li><b>Log</b>: the converter's own output, kept whole for the entire
+session. A line printed over and over (Timepix4 prints one per dropped packet)
+is shown 20 times per file and then counted. A failed file gets a
+<code>FAILED</code> line with its cause and what to change, and the end of
+the run sums the failures up by cause. <b>Save log...</b> writes it all to a
+text file.</li>
 </ul>
 <p>On Windows, before a run the GUI checks that WSL can see the drives
 involved, and offers to mount one that it cannot (typically a USB disk).</p>
@@ -228,14 +287,15 @@ involved, and offers to mount one that it cannot (typically a USB disk).</p>
 <a name="advanced"></a><h2>Advanced tab</h2>
 <p>Everything here is optional.</p>
 <h3>Luna installation</h3>
-<p><b>Folder</b> is the Luna install root or its <code>bin</code> folder.
-<b>Check install</b> re-detects the backend and prints
-<code>tpx3dump --version</code> and <code>tpx3dump process --help</code> into
-the log — the authoritative flag list for your Luna version.</p>
+<p><b>Folder</b> is the Luna install root or its <code>bin</code> folder, for
+the detector selected on the Process tab; each detector remembers its own.
+<b>Check install</b> re-detects the backend and prints the converter's
+<code>--version</code> and <code>process --help</code> into the log — the
+authoritative flag list for your Luna version.</p>
 <h3>Output</h3>
 <ul>
 <li><b>Next to the input file</b> (default) — each <code>.hdf5</code> beside
-its <code>.tpx3</code>.</li>
+its raw file.</li>
 <li><b>Output folder (flat)</b>: every <code>.hdf5</code> in one folder.</li>
 <li><b>Output folder (mirror tree)</b>: the campaign's folder structure
 rebuilt under the output folder, without the <code>raw</code> level.</li>
@@ -244,15 +304,16 @@ rebuilt under the output folder, without the <code>raw</code> level.</li>
 <li><b>Skip files whose output already exists</b> (on by default) — untick to
 overwrite everything, or tick <b>Overwrite</b> on single rows instead.</li>
 </ul>
-<h3>tpx3dump flags</h3>
-<p>All {flag_count} options of <code>tpx3dump process</code>, with a note on
-each; see <a href="#flags">tpx3dump flags</a>. Blank means
-<code>tpx3dump</code>'s own default. <b>extra arguments</b> is passed verbatim
-after them, for anything a newer Luna adds.</p>
-<h3>After processing</h3>
+<h3>tpx3dump / tpx4dump flags</h3>
+<p>Every option of the current detector's <code>process</code> command, with a
+note on each; see <a href="#flags">Luna flags</a>. Blank means the
+converter's own default. <b>extra arguments</b> is passed verbatim after them,
+for anything a newer Luna adds.</p>
+<h3>After processing (Timepix3 only)</h3>
 <p><b>Add TDC columns to each output .hdf5</b>: once <code>tpx3dump</code>
 finishes a file, this GUI tags every hit and cluster with the TDC edge it
-follows; see <a href="#tdc">TDC</a>. Not a <code>tpx3dump</code> flag.</p>
+follows; see <a href="#tdc">TDC</a>. Not a Luna flag, and hidden on Timepix4,
+whose files carry no TDC edges.</p>
 <h3>Buttons</h3>
 <ul>
 <li><b>Preview commands</b>: prints the exact command for every queued file,
@@ -274,9 +335,11 @@ inputs would get the same name, both rows are marked <b>CLASH</b> and skipped
 rather than one overwriting the other — keep <code>{{time}}</code> or
 <code>{{stem}}</code> in the template to avoid it.</p>
 
-<a name="flags"></a><h2>tpx3dump flags</h2>
-<p>Taken from <code>tpx3dump process --help</code>. Blank fields pass nothing,
-so <code>tpx3dump</code> uses the default shown. Times carry their unit
+<a name="flags"></a><h2>Luna flags</h2>
+<p>Taken from <code>tpx3dump process --help</code> and <code>tpx4dump process
+--help</code>; <b>For</b> says which converter accepts each, and only those are
+shown on the Advanced tab. Blank fields pass nothing, so the converter uses the
+default shown — the same for both where both have the flag. Times carry their unit
 (<code>s ms us ns ps fs</code>): write <code>200ns</code>, not
 <code>200</code>; a bare number is refused before anything runs.</p>
 {_flags_html(pal)}
@@ -308,18 +371,24 @@ opens in its own window for side-by-side comparison.</p>
 <ul>
 <li><code>PixelHits</code>: one row per pixel hit.</li>
 <li><code>Clusters</code>: one row per cluster of hits.</li>
-<li><code>TDCEvents</code>: every TDC edge, repeated once per chip.</li>
+<li><code>TDCEvents</code>: every TDC edge, repeated once per chip
+(Timepix3 only).</li>
 <li><code>ExposureTimeBoundaries</code>: the frame boundaries of the
 acquisition.</li>
 <li><code>PixelHitsTDC</code>, <code>ClustersTDC</code>: the TDC columns, if
 this GUI wrote them.</li>
 </ul>
-<p>All timestamps (<code>toa</code>, <code>ctoa</code>, TDC
-<code>timestamp</code>) count 100 fs ticks of one clock, so subtracting them is
-meaningful. ToT values are in ns, always multiples of 25 ns.</p>
+<p>Within one file all timestamps count ticks of one clock, so subtracting
+them is meaningful. The units differ by detector, per Luna's own unit-conversion
+example: on <b>Timepix3</b>, <code>toa</code>, <code>ctoa</code> and the TDC
+<code>timestamp</code> count 1e-13 s (100 fs) and ToT is in ns, in 25 ns steps;
+on <b>Timepix4</b>, ToA <i>and</i> ToT count 1e-16 s (100 as), ToT in steps of
+0.195 ns. The Inspect summary names the detector it judged a file to be from,
+and the plots and row viewer use that detector's units.</p>
 {units}
 
 <a name="tdc"></a><h2>TDC</h2>
+<p><i>Timepix3 only: <code>tpx4dump</code> writes no TDC data.</i></p>
 <p><code>TDCEvents</code> holds every TDC edge <code>tpx3dump</code> saw:
 <code>tdc_type</code> (1 TDC1Rising, 2 TDC1Falling, 3 TDC2Rising,
 4 TDC2Falling), <code>trigger_count</code> and <code>timestamp</code>. Every
@@ -345,11 +414,12 @@ edge</b> tags from the latest edge of any type.</p>
 <a name="about"></a><h2>Settings and about</h2>
 <p>{escape(APP_NAME)}, version {escape(__version__)}. F1 opens this window
 from anywhere in the app.</p>
-<p>Settings — Luna folder, batch folders, template, flags, TDC reference and
-theme — are saved on exit to <code>{escape(str(CONFIG_PATH))}</code>. The
+<p>Settings — detector, the Luna folder and batch folders of each detector,
+template, flags, TDC reference and theme — are saved on exit to <code>{escape(str(CONFIG_PATH))}</code>. The
 <b>View</b> menu switches between the light and dark theme.</p>
-<p>This program only wraps Luna: it runs your unmodified <code>tpx3dump</code>
-through its command line and contains no part of it.</p>
+<p>This program only wraps Luna: it runs your unmodified
+<code>tpx3dump</code> or <code>tpx4dump</code> through its command line and
+contains no part of it.</p>
 """
 
 
@@ -459,4 +529,3 @@ class HelpWindow(QDialog):
             self.lbl_find.setText("wrapped to the top")
             return
         self.lbl_find.setText("")
-

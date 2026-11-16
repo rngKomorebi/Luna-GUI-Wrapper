@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 16-11-2026
+
+### Added
+
+- Timepix4: a **Detector** switch (Timepix3 | Timepix4) on the Process tab
+  runs Luna's `tpx4dump` over `.tpx4` files the same way as `tpx3dump` over
+  `.tpx3`. Each detector keeps its own Luna folder and batch folders. Only
+  the current converter's flags are shown and passed; `tpx4dump`'s
+  `--input-format`, `--max-delay` and `--enable-gray-decoding` are added.
+  The TDC columns option is hidden for Timepix4, which records no TDC edges.
+  As with Timepix3, Luna is not bundled: the GUI runs the user's own copy.
+- Inspect HDF5 tells Timepix3 from Timepix4 files by their ToT values and
+  uses each one's units (Timepix4 counts ToA and ToT in 1e-16 s) in the
+  summary, the ToT plots and the row viewer's column tooltips.
+- The Luna folder may be the archive's outer folder: the converter is also
+  looked for one level down, as ASI's Timepix4 archive nests a same-named
+  folder.
+- Failed files are logged: a `FAILED` line names the cause and what to change
+  (output name too long, file locked, disk full, drive not visible to WSL, a
+  rejected flag, a crash with its message...). The row shows the cause, and
+  the end of the run sums the failures up by cause.
+- **Rerun failed (N)** above the Overwrite column, yellow once anything has
+  failed. It explains each cause and warns if it still holds with the current
+  settings, ticks Overwrite where a partial `.hdf5` was left behind, and runs
+  only the failed files.
+- **Save log...** next to Clear log.
+
+### Changed
+
+- Renamed **Luna Tpx3 GUI** to **Luna GUI Wrapper**, now that it handles
+  Timepix4 too: repository `Luna-GUI-Wrapper`, package `luna_gui_wrapper`,
+  pip name and console script `luna-gui-wrapper`. Settings are now saved to
+  `~/.luna_gui_wrapper.json`; the old `~/.luna_tpx3_gui_qt.json` is still
+  read when the new file does not exist yet. The installers remove the old
+  launcher / shortcut, and `run_gui.bat` / `run_gui.sh` still find a venv
+  built under the old name. HDF5 files keep the `luna_tpx3_gui.tdc_columns`
+  stamp, so TDC columns written before the rename are still recognised.
+- README cut down to an introduction, a short install and run section and a
+  Timepix3 / Timepix4 table. The detail moved into the Sphinx docs: Overview,
+  Installation, Usage, Inspect HDF5, TDC, Troubleshooting. Screenshots
+  retaken.
+- Name templates: the placeholder list, the Help table and the presets show
+  only `{stem}` `{measurement}` `{campaign}` `{date}` `{time}` `{datetime}`
+  `{comment}`. The metadata placeholders (`{bias}`, `{duration}`,
+  `{exposure}`, `{polarity}`, `{size}`, `{thr_coarse}` and the rest) are no
+  longer listed, but a saved template that uses them still works.
+- The app icon is now `icon/icon.png` at 512 px (was a 1024 px, 740 KB
+  `screen.png`); `install-linux.sh` installs it under `hicolor/512x512` and
+  removes the old 1024 px copy.
+
+### Fixed
+
+- The log kept only its last 20,000 lines, so a long batch lost its start (a
+  560-file Timepix4 run kept files 312-560 only). It is now kept whole.
+- The count of hidden repeated lines cut off before the error kind
+  (`ToAArithmet...`); it now drops Luna's source-location prefix and shows
+  the message.
+- The window froze while processing a Timepix4 file. `tpx4dump` prints one
+  error line per dropped packet (212,706 for one 84 MB file), and the log took
+  them one redraw at a time, until the event loop starved, the output pipe
+  filled and the converter blocked on it. Converter output is now written to
+  the log in batches, and after the first 20 lines of one kind the rest are
+  counted and summed up when the file is done. Replaying that file's output at
+  10x its real rate, the window never paused longer than 29 ms.
+- Timepix4 hitmaps showed an all-dark chip. One corner pixel held a third of
+  the hits (firing at the laser's 190 kHz) and set a linear colour scale that
+  drew everything else, the laser spot included, as zero; the image was also
+  square, so 64 columns past the 448-wide chip showed as empty. Hitmaps are
+  now sized to the data's own width and height, and when the hottest pixel is
+  more than 5x the 99.9th percentile of hit pixels the colour scale stops
+  there, with an arrow on the colour bar and the clipped pixels named in the
+  title. Hitmaps without such outliers are unchanged.
+
 ## [0.2.0] - 01-11-2026
 
 ### Added

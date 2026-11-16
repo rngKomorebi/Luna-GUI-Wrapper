@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Make Luna Tpx3 GUI (Qt 6) launchable with one double-click on Windows.
+    Make Luna GUI Wrapper (Qt 6) launchable with one double-click on Windows.
 
 .DESCRIPTION
     Builds a private venv with everything in requirements.txt under
-    %USERPROFILE%\venvs\<VenvName> (default: luna-tpx3-gui), then creates a
+    %USERPROFILE%\venvs\<VenvName> (default: luna-gui-wrapper), then creates a
     Desktop (and optionally Start Menu) shortcut that runs the GUI through
     that venv's pythonw.exe -- no console window, no need to open PowerShell.
     Nothing outside the current user's profile is touched and no administrator
@@ -26,19 +26,21 @@ param(
     [switch]$StartMenu,                  # also add it to the Start Menu
     [switch]$Uninstall,                  # remove the shortcuts this script created
     [switch]$NoVenv,                     # skip the venv; use a Python that already has PySide6
-    [string]$VenvName = 'luna-tpx3-gui', # folder under %USERPROFILE%\venvs
+    [string]$VenvName = 'luna-gui-wrapper', # folder under %USERPROFILE%\venvs
     [string]$Python                      # explicit pythonw.exe to use (implies -NoVenv)
 )
 
 $ErrorActionPreference = 'Stop'
 $here     = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script   = Join-Path $here 'src\main.py'
-$pngIcon  = Join-Path $here 'src\luna_tpx3_gui\icon\screen.png'
-$icoIcon  = Join-Path $here 'src\luna_tpx3_gui\icon\luna-tpx3-gui.ico'
-$lnkName  = 'Luna Tpx3 GUI.lnk'
+$pngIcon  = Join-Path $here 'src\luna_gui_wrapper\icon\icon.png'
+$icoIcon  = Join-Path $here 'src\luna_gui_wrapper\icon\luna-gui-wrapper.ico'
+$lnkName  = 'Luna GUI Wrapper.lnk'
+$oldLnk   = 'Luna Tpx3 GUI.lnk'          # the shortcut's name before the rename
 $desktop  = [Environment]::GetFolderPath('Desktop')
 $startDir = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'
 $targets  = @((Join-Path $desktop $lnkName), (Join-Path $startDir $lnkName))
+$oldTargets = @((Join-Path $desktop $oldLnk), (Join-Path $startDir $oldLnk))
 $reqs     = Join-Path $here 'requirements.txt'
 $venvDir  = Join-Path $env:USERPROFILE ('venvs\' + $VenvName)
 $venvPy   = Join-Path $venvDir 'Scripts\python.exe'
@@ -76,7 +78,7 @@ function Find-BasePython {
 # ------------------------------------------------------------------ uninstall
 if ($Uninstall) {
     $n = 0
-    foreach ($t in $targets) {
+    foreach ($t in $targets + $oldTargets) {
         if (Test-Path $t) { Remove-Item $t -Force; Say "removed    : $t"; $n++ }
     }
     if ($n -eq 0) { Say 'nothing to remove' }
@@ -173,7 +175,7 @@ and point this script at it explicitly:
 }
 
 # ------------------------------------------------------------------ icon
-# .lnk wants a real .ico; derive one from the 1024x1024 png once.
+# .lnk wants a real .ico; derive one from the 512x512 png once.
 if (-not (Test-Path $icoIcon) -and (Test-Path $pngIcon)) {
     $py = $pythonw -replace 'pythonw\.exe$', 'python.exe'
     Invoke-Quiet $py @('-c', @"
@@ -190,6 +192,10 @@ im.save(r'$icoIcon', format='ICO',
 $wanted = @(Join-Path $desktop $lnkName)
 if ($StartMenu) { $wanted += Join-Path $startDir $lnkName }
 
+foreach ($t in $oldTargets) {
+    if (Test-Path $t) { Remove-Item $t -Force; Say "removed    : $t (old name)" }
+}
+
 $shell = New-Object -ComObject WScript.Shell
 foreach ($t in $wanted) {
     New-Item -ItemType Directory -Force -Path (Split-Path $t) | Out-Null
@@ -197,7 +203,7 @@ foreach ($t in $wanted) {
     $s.TargetPath       = $pythonw
     $s.Arguments        = '"' + $script + '"'
     $s.WorkingDirectory = $here
-    $s.Description      = 'Luna Tpx3 GUI - batch tpx3dump front end'
+    $s.Description      = 'Luna GUI Wrapper - batch tpx3dump / tpx4dump front end'
     if (Test-Path $icoIcon) { $s.IconLocation = "$icoIcon,0" }
     $s.Save()
     Say "shortcut   : $t"

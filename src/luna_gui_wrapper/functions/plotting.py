@@ -8,14 +8,38 @@ from __future__ import annotations
 
 import contextlib
 
-# Timepix3 clocks ToT on the 40 MHz reference, so every tot / ctot value in the
-# HDF5 is an exact multiple of 25 ns. Histogram bin widths must be integer
-# multiples of this or the bins beat against the level spacing.
-TOT_LSB_NS = 25.0
+# ToT is quantised -- 25 ns steps on Timepix3 (the 40 MHz reference), 0.195 ns
+# on Timepix4 (see detectors.py) -- so histogram bin widths must be whole
+# multiples of the step or the bins beat against the level spacing.
+
+# Peak-pixel ToT gets one bin per step while that stays under this many bins:
+# Timepix3's 10-bit ToT is at most 1023 steps, so it always does. Timepix4's
+# fine step would need thousands, so it gets a whole number of steps instead.
+TOT_MAX_BINS = 2000
 
 # Clusters/sum_tot reaches ~227 us, so the native 25 ns tick would be ~9000
-# bins. Snap to a whole number of ticks aiming for roughly this many instead.
+# bins. Snap to a whole number of ticks aiming for at most this many instead.
 STOT_TARGET_BINS = 300
+
+
+def tot_bin_edges(hi, lsb, max_bins, np):
+    """Histogram edges for ToT values in 0..hi, all in the same unit.
+
+    The bin width is the smallest whole number of ToT steps (`lsb`) that keeps
+    the count at or below max_bins. Edges run to hi + one step, so the
+    largest value lands inside the last bin instead of falling off the end.
+    -> (edges, bin width)
+    """
+    k = max(1, int(np.ceil(hi / lsb / max_bins))) if hi > 0 else 1
+    step = k * lsb
+    return np.arange(0.0, hi + step, step), step
+
+# Hitmaps: when the hottest pixel holds more than HITMAP_CLIP_FACTOR times the
+# HITMAP_CLIP_PERCENTILE-th percentile of the pixels that were hit, the colour
+# scale stops at that percentile, so one hot or reference pixel cannot paint
+# the rest of the chip as zero. A hitmap without such outliers is unaffected.
+HITMAP_CLIP_PERCENTILE = 99.9
+HITMAP_CLIP_FACTOR = 5.0
 
 # Cluster size histogram: one bin per pixel over 0..40, which is where the
 # distribution lives -- anything above is counted and reported in the title

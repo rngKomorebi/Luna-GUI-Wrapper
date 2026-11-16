@@ -2,7 +2,7 @@
 
 import pytest
 
-from luna_tpx3_gui.functions.backend import Backend, detect_backend, drive_letter, win_to_wsl
+from luna_gui_wrapper.functions.backend import Backend, detect_backend, drive_letter, win_to_wsl
 
 
 def test_win_to_wsl():

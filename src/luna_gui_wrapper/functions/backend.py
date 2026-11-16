@@ -1,4 +1,4 @@
-"""How tpx3dump is launched on this machine: natively, or through WSL.
+"""How the Luna converter (tpx3dump, tpx4dump) is launched: natively, or through WSL.
 
 Also the Windows -> WSL path translation and the WSL drive-mount checks.
 Qt-free.
@@ -163,8 +163,26 @@ def wsl_distros() -> list:
     return [ln.strip() for ln in text.splitlines() if ln.strip()]
 
 
-def detect_backend(luna_dir: str) -> Backend:
-    """Work out the best way to run tpx3dump from a Luna install directory."""
+def _exe_dirs(root: Path):
+    """Where a converter may sit under a Luna folder the user picked.
+
+    The install root's bin/, the root itself (bin/ was picked), and one level
+    down -- ASI's archives unpack into a folder holding a same-named folder,
+    so the outer one is an easy thing to pick.
+    """
+    yield root / "bin"
+    yield root
+    try:
+        subs = sorted(p for p in root.iterdir() if p.is_dir())
+    except Exception:
+        subs = []
+    for sub in subs:
+        yield sub / "bin"
+
+
+def detect_backend(luna_dir: str, exe: str = "tpx3dump") -> Backend:
+    """Work out the best way to run `exe` (tpx3dump, tpx4dump) from a Luna
+    install directory."""
     if not luna_dir:
         return Backend(detail="No Luna directory set - browse to it above.")
     root = Path(luna_dir)
@@ -172,11 +190,11 @@ def detect_backend(luna_dir: str) -> Backend:
         return Backend(detail="Not a directory: " + str(root))
 
     native_exe = linux_exe = None
-    for d in (root / "bin", root):          # accept the root or bin/ itself
-        if IS_WINDOWS and (d / "tpx3dump.exe").is_file():
-            native_exe = d / "tpx3dump.exe"
-        if (d / "tpx3dump").is_file():
-            linux_exe = d / "tpx3dump"
+    for d in _exe_dirs(root):
+        if IS_WINDOWS and not native_exe and (d / (exe + ".exe")).is_file():
+            native_exe = d / (exe + ".exe")
+        if not linux_exe and (d / exe).is_file():
+            linux_exe = d / exe
 
     if native_exe:
         return Backend("native", str(native_exe),
@@ -197,8 +215,8 @@ def detect_backend(luna_dir: str) -> Backend:
             lx = win_to_wsl(str(linux_exe))
             return Backend("wsl", lx, distro=distros[0],
                            detail="via WSL (" + distros[0] + "): " + lx)
-        return Backend(detail="Found the Linux tpx3dump but no WSL distribution "
+        return Backend(detail=f"Found the Linux {exe} but no WSL distribution "
                               "is installed. Install one (wsl --install -d Ubuntu) "
                               "or use 'Export .sh' to run the queue on Ubuntu.")
 
-    return Backend(detail="No tpx3dump or tpx3dump.exe found under " + str(root))
+    return Backend(detail=f"No {exe} or {exe}.exe found under " + str(root))

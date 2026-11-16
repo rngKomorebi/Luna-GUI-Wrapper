@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Make Luna Tpx3 GUI (Qt 6) launchable with one click on Ubuntu.
+# Make Luna GUI Wrapper (Qt 6) launchable with one click on Ubuntu.
 #
 # Installs a .desktop entry (and its icon) into the current user's
 # ~/.local/share, so the GUI shows up in the Activities menu and can be pinned
@@ -20,12 +20,16 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-app_id="luna-tpx3-gui-qt"
-legacy_app_id="tpx3dump-gui-qt"
+app_id="luna-gui-wrapper"
+# Launcher names of earlier releases (before the Luna GUI Wrapper rename);
+# their menu entries and icons are removed on install and on --uninstall.
+legacy_app_ids="tpx3dump-gui-qt luna-tpx3-gui-qt"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 apps_dir="$data_home/applications"
 icon_dir="$data_home/icons/hicolor/scalable/apps"
-png_icon_dir="$data_home/icons/hicolor/1024x1024/apps"
+png_icon_dir="$data_home/icons/hicolor/512x512/apps"
+# Releases before the 512 px icon installed it here; cleaned up below.
+old_png_icon_dir="$data_home/icons/hicolor/1024x1024/apps"
 venv_dir="$data_home/$app_id/venv"
 desktop_file="$apps_dir/$app_id.desktop"
 
@@ -57,18 +61,29 @@ refresh_menus() {
         && gtk-update-icon-cache -f -t "$data_home/icons/hicolor" 2>/dev/null || true
 }
 
+remove_legacy() {
+    local id f
+    [ -e "$old_png_icon_dir/$app_id.png" ] && rm -f "$old_png_icon_dir/$app_id.png" && say "removed $old_png_icon_dir/$app_id.png (old icon size)"
+    for id in $legacy_app_ids; do
+        for f in "$apps_dir/$id.desktop" "$icon_dir/$id.svg" "$old_png_icon_dir/$id.png" "$(desktop_dir)/$id.desktop"; do
+            [ -e "$f" ] && rm -f "$f" && say "removed $f (old name)"
+        done
+        [ -d "$data_home/$id/venv" ] && say "an old venv is still at $data_home/$id/venv -- rm -rf it to free the space"
+    done
+    return 0
+}
+
 # ---------------------------------------------------------------- uninstall
 if [ "$do_uninstall" = 1 ]; then
-    echo "Removing the Luna Tpx3 GUI (Qt) launcher..."
-    for f in "$desktop_file" "$icon_dir/$app_id.svg" "$png_icon_dir/$app_id.png" "$(desktop_dir)/$app_id.desktop" \
-             "$apps_dir/$legacy_app_id.desktop" "$icon_dir/$legacy_app_id.svg" \
-             "$png_icon_dir/$legacy_app_id.png" "$(desktop_dir)/$legacy_app_id.desktop"; do
+    echo "Removing the Luna GUI Wrapper launcher..."
+    for f in "$desktop_file" "$icon_dir/$app_id.svg" "$png_icon_dir/$app_id.png" "$(desktop_dir)/$app_id.desktop"; do
         [ -e "$f" ] && rm -f "$f" && say "removed $f"
     done
     if [ -d "$venv_dir" ]; then
         say "the private venv is still at $venv_dir"
         say "delete it yourself if you want the space back:  rm -rf '$venv_dir'"
     fi
+    remove_legacy
     refresh_menus
     echo "Done. The GUI's own files in $here were left alone."
     exit 0
@@ -76,7 +91,7 @@ fi
 
 # ------------------------------------------------------------------- checks
 who_am_i="${USER:-$(id -un 2>/dev/null || echo "$(basename "$HOME")")}"
-echo "Installing the Luna Tpx3 GUI (Qt) launcher for $who_am_i"
+echo "Installing the Luna GUI Wrapper launcher for $who_am_i"
 say "source     : $here"
 say "launcher   : $desktop_file"
 
@@ -125,7 +140,7 @@ fi
 mkdir -p "$apps_dir" "$png_icon_dir"
 
 icon_src=""
-for cand in "$here/src/luna_tpx3_gui/icon/screen.png"; do
+for cand in "$here/src/luna_gui_wrapper/icon/icon.png"; do
     [ -f "$cand" ] && { icon_src="$cand"; break; }
 done
 
@@ -138,11 +153,12 @@ else
     say "icon       : no icon found, using a stock icon"
 fi
 
+remove_legacy
 cat > "$desktop_file" <<EOF
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Luna Tpx3 GUI (Qt)
+Name=Luna GUI Wrapper
 GenericName=Timepix3 batch converter
 Comment=Batch-convert Timepix3 .tpx3 files to HDF5 using ASI Luna
 Exec="$here/run_gui.sh"

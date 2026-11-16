@@ -11,10 +11,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-TEMPLATE_HELP = ("{stem} {measurement} {campaign} {date} {time} {datetime} "
-                 "{comment} {bias} {exposure} {ntrig} {frames} {duration} "
-                 "{polarity} {trigmode} {period} {chip} {chipboard} {size} "
-                 "{thr_coarse} {thr_fine}")
+# The placeholders shown in the GUI and the help. measurement_context() also
+# fills {bias} {exposure} {ntrig} {frames} {duration} {polarity} {trigmode}
+# {period} {chip} {chipboard} {size} {thr_coarse} {thr_fine}; they are no
+# longer advertised, but a saved template that uses them still works.
+TEMPLATE_HELP = "{stem} {measurement} {campaign} {date} {time} {datetime} {comment}"
 
 # Default output name. Built from measurement_metadata.json in the folder above
 # the .tpx3, so the result says what the run was instead of repeating ASI's
@@ -50,10 +51,6 @@ PRESET_TEMPLATES = [
      "2026-08-07_12-52-45_DCR-0V-gain_fCqk_000000.hdf5  (default)"),
     ("{date}_{comment}_{stem}", "2026-08-07_DCR-0V-gain_fCqk_000000.hdf5"),
     ("{datetime}_{comment}", "2026-08-07_12-52-45_DCR-0V-gain.hdf5"),
-    ("{date}_{time}_{comment}_{bias}V_{stem}",
-     "2026-08-07_12-52-45_DCR-0V-gain_50V_fCqk_000000.hdf5"),
-    ("{date}_{comment}_{frames}f_{duration}_{stem}",
-     "2026-08-07_DCR-0V-gain_100f_10s_fCqk_000000.hdf5"),
     ("{measurement}", "Measurement_Aug_07_2026_12h52m45s.hdf5"),
     ("{campaign}_{measurement}", "data_DCR_07.08.2026_Measurement_....hdf5"),
     ("{stem}", "mirror the input name -- fCbh_000000.hdf5"),
@@ -192,3 +189,4 @@ class Job:
     ctx: dict = field(default_factory=dict)
     origin: str = ""          # batch folder this came from, "" if added by hand
     overwrite: bool = False   # redo this one even though its .hdf5 exists
+    fail: object = None       # failures.Failure of the last run, None if it did not fail

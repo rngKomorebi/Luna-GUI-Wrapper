@@ -1,6 +1,6 @@
 """Entry point: create the QApplication and show the main window.
 
-Called by the `luna-tpx3-gui` console script, by `python -m luna_tpx3_gui`,
+Called by the `luna-gui-wrapper` console script, by `python -m luna_gui_wrapper`,
 and by src/main.py (which the launchers and shortcuts start).
 """
 
@@ -22,7 +22,7 @@ def set_linux_desktop_name(app):
 
     A Wayland shell has no WM_CLASS to go on: it matches a window to its
     launcher by app_id, which Qt takes from this value. Without it GNOME
-    cannot find luna-tpx3-gui-qt.desktop, so the dash and the task switcher
+    cannot find luna-gui-wrapper.desktop, so the dash and the task switcher
     fall back to a generic gear however the window icon is set.
     """
     if IS_WINDOWS:

@@ -25,7 +25,7 @@ jobs:
       # and the Qt modules would need a display stack on the runner.
       - name: Build docs
         run: |
-          sphinx-apidoc -f -e -M -o docs src/luna_tpx3_gui/ src/luna_tpx3_gui/gui src/luna_tpx3_gui/main.py src/luna_tpx3_gui/__main__.py
+          sphinx-apidoc -f -e -M -o docs src/luna_gui_wrapper/ src/luna_gui_wrapper/gui src/luna_gui_wrapper/main.py src/luna_gui_wrapper/__main__.py
           sphinx-build docs _build
 
       - name: Deploy to GitHub Pages

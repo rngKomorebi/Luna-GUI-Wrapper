@@ -16,7 +16,7 @@ env.bak/
 venv.bak/
 
 # Bundled executables: this project deliberately ships none (see the licence
-# note in the README), so keep any local experiment out of the repository.
+# note in docs/license.md), so keep any local experiment out of the repository.
 *.spec
 *.exe
 
@@ -36,7 +36,7 @@ htmlcov/
 
 # Sphinx docs build, and the API pages sphinx-apidoc generates in CI
 _build/
-docs/luna_tpx3_gui*.rst
+docs/luna_gui_wrapper*.rst
 docs/modules.rst
 
 # Jupyter
@@ -63,15 +63,12 @@ _old/
 *.bak
 *.orig
 
-# Local-only material, not part of the published app:
-# design mockups, and button PNGs left over from the retired tkinter build.
-dark design/
-light design/
-assets/
-
 # Never commit Luna itself (licence) or measurement data.
 luna-tpx3-*/
+luna-tpx4-*/
 *.tpx3
+*.tpx4
 *.hdf5
 *.h5
 run_tpx3dump.sh
+run_tpx4dump.sh

@@ -52,6 +52,9 @@ TDC_UNSET = -1
 
 # Marks a dataset this GUI wrote, so re-tagging a file replaces its own
 # previous columns and refuses to touch anything else.
+# Written into users' HDF5 files, and checked before a column is overwritten,
+# so it keeps the package's pre-rename name: files written before the rename
+# must still be recognised.
 TDC_STAMP = "luna_tpx3_gui.tdc_columns"
 
 # "Any edge" tags each row from the most recent edge of whatever type, instead
@@ -68,7 +71,7 @@ TDC_CHUNK = 2_000_000
 #
 # Nothing below touches Qt, so the same functions work from a notebook:
 #
-#     import luna_tpx3_gui as g
+#     import luna_gui_wrapper as g
 #     df = g.read_tdcs("run.hdf5")                 # the edges themselves
 #     g.add_tdc_columns("run.hdf5", "TDC1Rising")  # write the columns
 #     df = g.read_with_tdc("run.hdf5", "Clusters") # frame with a tdc column

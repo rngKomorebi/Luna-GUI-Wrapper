@@ -24,25 +24,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                                QHBoxLayout, QHeaderView, QLabel, QScrollBar,
                                QSpinBox, QTableView, QVBoxLayout)
 
+from ..functions.detectors import TPX3, field_units
 from .widgets import button, row
-
-# What the numbers mean, for the column header tooltips. Only fields whose
-# unit this project has checked against real files are listed.
-FIELD_UNITS = {
-    "toa": "100 fs ticks",
-    "ctoa": "100 fs ticks",
-    "timestamp": "100 fs ticks",
-    "tof": "100 fs ticks since the --tof-tdc-reference edge; -1 = unset",
-    "tdc": "100 fs ticks, timestamp of the reference edge",
-    "tdc_dt": "100 fs ticks since the reference edge; -1 = no edge yet",
-    "tot": "ns, in steps of 25 ns",
-    "ctot": "ns, the cluster's peak-pixel ToT",
-    "sum_tot": "ns, the cluster's total ToT",
-    "x": "pixel column", "y": "pixel row",
-    "cx": "pixel column", "cy": "pixel row",
-    "size": "pixels in the cluster",
-    "tdc_type": "1 TDC1Rising, 2 TDC1Falling, 3 TDC2Rising, 4 TDC2Falling",
-}
 
 # The scroll bar counts rows in an int.
 MAX_ROWS = 2**31 - 1
@@ -56,9 +39,12 @@ class DatasetModel(QAbstractTableModel):
     read_failed = Signal(str)
     CACHED_BLOCKS = 8
 
-    def __init__(self, path, name, h5py, np, parent=None):
+    def __init__(self, path, name, h5py, np, det=TPX3, parent=None):
         super().__init__(parent)
         self.path, self.name, self.h5py, self.np = str(path), name, h5py, np
+        # What the numbers mean, for the column header tooltips: the units
+        # differ between Timepix3 and Timepix4 files.
+        self.units = field_units(det)
         with h5py.File(self.path, "r") as f:
             ds = f[name]
             self.shape, self.dtype = ds.shape, ds.dtype
@@ -171,7 +157,7 @@ class DatasetModel(QAbstractTableModel):
             return col
         if role == Qt.ItemDataRole.ToolTipRole:
             dt = self.dtype[col] if self.dtype.names else self.dtype
-            unit = FIELD_UNITS.get(col)
+            unit = self.units.get(col)
             return str(dt) + ("\n" + unit if unit else "")
         return None
 
@@ -179,18 +165,19 @@ class DatasetModel(QAbstractTableModel):
 class DatasetViewer(QDialog):
     """The window: info line, the table with its own scroll bar, navigation."""
 
-    def __init__(self, path, name, h5py, np, mono, parent=None):
+    def __init__(self, path, name, h5py, np, mono, det=TPX3, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setWindowTitle(f"/{name} -- {Path(path).name}")
         self.resize(940, 600)
-        m = self.model = DatasetModel(path, name, h5py, np, self)
+        m = self.model = DatasetModel(path, name, h5py, np, det, self)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 12, 12, 10)
         lay.setSpacing(8)
 
         info = QLabel(f"/{name}    {m.n:,} rows    {len(m.columns)} columns    "
+                      f"{det.name} units    "
                       f"read {m.block:,} rows at a time")
         info.setProperty("muted", True)
         lay.addWidget(info)
