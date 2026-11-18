@@ -56,8 +56,8 @@ from ..functions.timewalk import (TW_CURVE, TW_DEFAULT_CTOT_CUT_NS,
 from .dataset_view import DatasetViewer
 from .help_window import SECTIONS, HelpWindow
 from .models import FolderModel, JobModel
-from .style import (_FONT_MONO_CANDIDATES, _FONT_SANS_CANDIDATES, PALETTES,
-                    build_palette, build_qss, pick_font)
+from .preferences import PreferencesDialog
+from .theme import preset_group, preset_names, theme_manager
 from .widgets import (CheckHeader, PathEdit, PathsEdit, button, row, table,
                       vline)
 
@@ -130,10 +130,13 @@ class MainWindow(QMainWindow):
         self._flush_timer.timeout.connect(self._flush_output)
         self._reset_output()
 
-        self.theme_name = self.cfg.get("theme") if self.cfg.get("theme") in PALETTES else "light"
-        self.pal = PALETTES[self.theme_name]
-        self.sans = pick_font(_FONT_SANS_CANDIDATES, "Segoe UI" if IS_WINDOWS else "Sans")
-        self.mono = pick_font(_FONT_MONO_CANDIDATES, "Consolas" if IS_WINDOWS else "Monospace")
+        # The theme: one process-wide manager (theme.py), which also serves
+        # Preferences. self.pal is the stylesheet's palette for the current
+        # theme, read by the models, the queue header and Help.
+        self._manager = theme_manager()
+        self.pal = self._manager.palette()
+        self.sans, self.mono = self._manager.fonts()
+        self._preferences = None      # built on first use, then kept
 
         self.setWindowTitle(APP_NAME)
         # The layout's own minimum is 841x746 and its preferred hint 841x780,
@@ -181,7 +184,8 @@ class MainWindow(QMainWindow):
         self.help = None              # built on first use, then kept
         self._build_menu()
 
-        self.apply_theme(self.theme_name)
+        self._manager.changed.connect(self._theme_changed)
+        self._theme_changed()
         self.apply_detector()
 
         # Restore last session's batch; deferred so the window paints first
@@ -268,21 +272,24 @@ class MainWindow(QMainWindow):
 
     # -- theme ------------------------------------------------------------
 
-    def apply_theme(self, name):
-        self.theme_name = name if name in PALETTES else "light"
-        self.pal = PALETTES[self.theme_name]
-        self.cfg["theme"] = self.theme_name
-        app = QApplication.instance()
-        app.setPalette(build_palette(self.pal))
-        app.setStyleSheet(build_qss(self.pal, self.sans, self.mono))
-        self.a_light.setChecked(self.theme_name == "light")
-        self.a_dark.setChecked(self.theme_name == "dark")
+    def _theme_changed(self):
+        """Restyle everything after the theme or a size changed.
+
+        Connected to the theme manager, so a choice from the View menu and a
+        colour picked in Preferences take the same path.
+        """
+        m = self._manager
+        self.pal = m.palette()
+        m.apply_to_app(QApplication.instance())
+        self._sync_theme_menu()
+        self.b_rerun.ensurePolished()
+        self.cap_l.setMinimumHeight(self.b_rerun.sizeHint().height())
         # Repaint model-driven colours (status text) under the new palette,
         # including the hand-drawn checkbox in the queue header.
         if getattr(self, "jhead", None):
             self.jhead.set_palette(self.pal)
         if getattr(self, "help", None):
-            self.help.set_palette(self.pal)
+            self.help.set_palette(self.pal, m.ui_font_size)
         self.job_model.reset()
         self.sync_overwrite_header()
         self.folder_model.reset()
@@ -381,6 +388,9 @@ class MainWindow(QMainWindow):
         self.b_rerun.setProperty("adv", "off")
         rlay.addWidget(row(cap_r, None, self.b_rerun))
         # Same height for the left caption, so the two tables start level.
+        # Measured again on every theme change (_theme_changed): the font
+        # size and the style both change the button's height.
+        self.cap_l = cap_l
         cap_l.setMinimumHeight(self.b_rerun.sizeHint().height())
         self.jtable = table(self.job_model, stretch_cols=(3,),
                             widths=(110, 175, 70, 320, 108))
@@ -791,15 +801,31 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(self.tab_advanced)
 
     def _build_menu(self):
-        # View: the theme, as one checked choice of two.
+        # View: the theme, and Preferences to change any part of it.
         v = self.menuBar().addMenu("&View")
-        themes = QActionGroup(self)
-        themes.setExclusive(True)
-        self.a_light = v.addAction("Light theme", lambda: self.apply_theme("light"))
-        self.a_dark = v.addAction("Dark theme", lambda: self.apply_theme("dark"))
-        for a in (self.a_light, self.a_dark):
+        theme_menu = v.addMenu("&Theme")
+        self._theme_group = QActionGroup(self)
+        self._theme_group.setExclusive(True)
+        self._theme_actions = {}
+        group = None
+        for key, name in preset_names():
+            # A separator where the group changes: the Luna themes, then
+            # daplis-rtp's dark ones, then its light ones.
+            if group is not None and preset_group(key) != group:
+                theme_menu.addSeparator()
+            group = preset_group(key)
+            a = theme_menu.addAction(name)
             a.setCheckable(True)
-            themes.addAction(a)
+            a.setData(key)
+            self._theme_group.addAction(a)
+            self._theme_actions[key] = a
+        self._theme_group.triggered.connect(
+            lambda a: self._manager.set_preset(a.data()))
+
+        v.addSeparator()
+        a = v.addAction("&Preferences...", self.open_preferences)
+        a.setShortcut(QKeySequence("Ctrl+,"))
+        a.setStatusTip("Theme, every colour, font and marker sizes")
 
         m = self.menuBar().addMenu("&Help")
         a = m.addAction("Help contents", lambda: self.show_help("start"))
@@ -811,9 +837,25 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         m.addAction("About " + APP_NAME, self.show_about)
 
+    def _sync_theme_menu(self):
+        """Tick the current theme without re-triggering it."""
+        a = self._theme_actions.get(self._manager.preset_key)
+        if a is not None and not a.isChecked():
+            blocked = self._theme_group.blockSignals(True)
+            a.setChecked(True)
+            self._theme_group.blockSignals(blocked)
+
+    def open_preferences(self):
+        """Preferences, built on first use and kept: it is not modal, so it
+        can sit beside the window while colours are picked."""
+        if self._preferences is None:
+            self._preferences = PreferencesDialog(self)
+        self._preferences.open_beside()
+
     def show_help(self, anchor):
         if self.help is None:
-            self.help = HelpWindow(self.pal, self.mono, self)
+            self.help = HelpWindow(self.pal, self.mono, self,
+                                   size=self._manager.ui_font_size)
         self.help.show()
         self.help.raise_()
         self.help.activateWindow()
@@ -1975,8 +2017,9 @@ class MainWindow(QMainWindow):
             "dcr_time_source": self.c_dcr_time.currentData(),
             "dcr_noisy_k": self.sp_dcr_k.value(),
             "extra": self.e_extra.text(),
-            "theme": self.theme_name,
         })
+        # Theme, style, colour changes, font and marker sizes.
+        self._manager.store(self.cfg)
         save_config(self.cfg)
 
     def closeEvent(self, event):
@@ -1989,6 +2032,8 @@ class MainWindow(QMainWindow):
                 return
             self.stop_run()
         self.save_settings()
+        if self._preferences is not None:
+            self._preferences.close()
         event.accept()
 
     # -- inspect tab ------------------------------------------------------
@@ -2540,7 +2585,7 @@ class MainWindow(QMainWindow):
             return
         self.dcr_text.appendPlainText(f"\nwrote {p}")
 
-    def _draw_dcr(self, what, path, fig, ax, styled, np):
+    def _draw_dcr(self, what, path, fig, ax, np):
         """The DCR plots, drawn from the cached counts of this file."""
         c = self.dcr_counts
         if c is None or self.dcr_path != path:
@@ -2559,14 +2604,14 @@ class MainWindow(QMainWindow):
             return False
 
         if what == "dcr_map":
-            self._draw_hitmap(fig, ax, m["hit_rate"], styled, np, "Hz / pixel",
+            self._draw_hitmap(fig, ax, m["hit_rate"], np, "Hz / pixel",
                               f"DCR, pixels -- {fmt_rate(c['n_hits'] / T)} "
                               f"over {T:.4g} s")
         elif what == "dcr_cmap":
             if not c["n_clusters"]:
                 QMessageBox.information(self, APP_NAME, "This file has no clusters.")
                 return False
-            self._draw_hitmap(fig, ax, m["cluster_rate"], styled, np,
+            self._draw_hitmap(fig, ax, m["cluster_rate"], np,
                               "clusters / s per pixel",
                               f"DCR, clusters -- {fmt_rate(c['n_clusters'] / T)} "
                               f"over {T:.4g} s")
@@ -2576,11 +2621,13 @@ class MainWindow(QMainWindow):
             # Log bins: a noisy pixel can sit decades above the bulk.
             bins = (np.logspace(np.log10(lo), np.log10(hi * 1.0001), 120)
                     if hi > lo else 20)
-            ax.hist(r, bins=bins, histtype="step", **self._series_colour(styled))
+            ax.hist(r, bins=bins, histtype="step")
             med = m["median_hits"] / T
-            ax.axvline(med, ls="--", lw=1, color="0.5",
+            # Reference lines, not data: the theme's marker colour.
+            ref = self._manager.theme.marker
+            ax.axvline(med, ls="--", lw=1, color=ref,
                        label=f"median {fmt_rate(med)}")
-            ax.axvline(m["noisy_cut_hits"] / T, ls=":", lw=1, color="0.5",
+            ax.axvline(m["noisy_cut_hits"] / T, ls=":", lw=1, color=ref,
                        label=f"noisy cut, {k:g} x median")
             ax.set_xscale("log")
             ax.set_yscale("log")
@@ -2634,9 +2681,7 @@ class MainWindow(QMainWindow):
             ax.remove()
             axes = fig.subplots(len(panels), 1, sharex=True, squeeze=False)[:, 0]
             for a, (label, stat, r) in zip(axes, panels):
-                if not styled:
-                    self._theme_axes(a)
-                a.plot(x, r, marker=".", lw=1, **self._series_colour(styled))
+                a.plot(x, r, marker=".", lw=1)
                 a.set_ylabel(f"{label}, {stat}\npixel DCR (Hz)")
                 a.set_title(f"{label}: {stat} pixel {fmt_rate(float(np.median(r)))}"
                             f" (median over time)", fontsize="medium")
@@ -2644,10 +2689,8 @@ class MainWindow(QMainWindow):
             if any(stat == "mean" for _l, stat, _r in panels):
                 note = ("\nmedian unavailable (" + (c.get("med_why") or
                         "frames differ") + "): mean per pixel shown")
-            sup = fig.suptitle(f"DCR vs time -- {how}, {counted:,} pixels "
-                               f"that counted{note}")
-            if not styled:
-                sup.set_color(self.pal["text"])
+            fig.suptitle(f"DCR vs time -- {how}, {counted:,} pixels "
+                         f"that counted{note}")
             axes[-1].set_xlabel("Time (s)")
         return True
 
@@ -2674,17 +2717,15 @@ class MainWindow(QMainWindow):
             return
 
         CAP = 8_000_000          # rows read at most, keeps the UI responsive
-        style_ctx, styled = plot_style_context(self.theme_name)
-        with style_ctx:
+        # The plot is drawn in the theme as it is now; a later theme change
+        # applies to the plots opened after it.
+        m = self._manager
+        with plot_style_context(m.preset_key, m.mpl_rc(), m.mpl_rc_changes()):
             fig = Figure(figsize=PLOT_FIGSIZE, dpi=100)
             ax = fig.add_subplot(111)
-            if not styled:
-                # No komorebi_mpl: paint the figure from the app palette so a
-                # dark theme still gets a dark plot.
-                fig.patch.set_facecolor(self.pal["surface_container_low"])
-                self._theme_axes(ax)
-            ok = self._draw_plot(what, path, fig, ax, styled, CAP, h5py, np)
+            ok = self._draw_plot(what, path, fig, ax, CAP, h5py, np)
             if ok:
+                self._glow(fig)
                 fig.tight_layout()
         if not ok:
             return
@@ -2700,18 +2741,18 @@ class MainWindow(QMainWindow):
         self._open_plots = getattr(self, "_open_plots", [])
         self._open_plots.append(dlg)
 
-    def _draw_plot(self, what, path, fig, ax, styled, CAP, h5py, np):
+    def _draw_plot(self, what, path, fig, ax, CAP, h5py, np):
         """Draw one plot onto ax. Returns False if there was nothing to draw.
 
         Runs inside the style context so every artist -- including the
         colorbar, which is its own axes -- picks up the style rcParams.
         """
         if what.startswith("dcr_"):
-            return self._draw_dcr(what, path, fig, ax, styled, np)
+            return self._draw_dcr(what, path, fig, ax, np)
         try:
             with h5py.File(path, "r") as f:
                 if what == "tdc":
-                    return self._draw_tdc(f, ax, styled, CAP, np)
+                    return self._draw_tdc(f, ax, CAP, np)
                 if what == "timewalk":
                     return self._draw_timewalk(f, ax, CAP, np)
                 # Only the pixel hitmap comes from PixelHits; everything else
@@ -2725,7 +2766,7 @@ class MainWindow(QMainWindow):
                     d = f["PixelHits"]
                     n = min(CAP, d.shape[0])
                     img = self._accumulate_xy(d, n, np, "x", "y")
-                    self._draw_hitmap(fig, ax, img, styled, np, "hits / pixel",
+                    self._draw_hitmap(fig, ax, img, np, "hits / pixel",
                                       f"Hitmap, pixels -- {n:,} hits")
                 else:
                     if "Clusters" not in f or not f["Clusters"].shape[0]:
@@ -2737,7 +2778,7 @@ class MainWindow(QMainWindow):
                     n = min(CAP, d.shape[0])
                     if what == "cmap":
                         img = self._accumulate_xy(d, n, np, "cx", "cy")
-                        self._draw_hitmap(fig, ax, img, styled, np,
+                        self._draw_hitmap(fig, ax, img, np,
                                           "clusters / pixel",
                                           f"Hitmap, clusters -- {n:,} clusters")
                     elif what == "tot":
@@ -2756,8 +2797,7 @@ class MainWindow(QMainWindow):
                         # as it does for Timepix4's 0.195 ns step.
                         edges, step = tot_bin_edges(float(ctot.max()),
                                                     det.tot_lsb_ns, TOT_MAX_BINS, np)
-                        ax.hist(ctot, bins=edges, histtype="step",
-                                **self._series_colour(styled))
+                        ax.hist(ctot, bins=edges, histtype="step",)
                         ax.set(title=f"Peak-pixel ToT -- {n:,} clusters",
                                xlabel=f"ToT (ns)   ({step:g} ns bins)",
                                ylabel="Counts (-)", yscale="log")
@@ -2775,15 +2815,13 @@ class MainWindow(QMainWindow):
                         edges, step = tot_bin_edges(float(stot.max()),
                                                     det.tot_lsb_ns,
                                                     STOT_TARGET_BINS, np)
-                        ax.hist(stot, bins=edges, histtype="step",
-                                **self._series_colour(styled))
+                        ax.hist(stot, bins=edges, histtype="step",)
                         ax.set(title=f"Cluster total ToT -- {n:,} clusters",
                                xlabel=f"summed ToT (ns)   ({step:g} ns bins)",
                                ylabel="Counts (-)", yscale="log")
                     else:                                   # csize
                         s = self._gather(d, n, np, "size").astype("int64")
-                        ax.hist(s, bins=CSIZE_BINS, range=(0, CSIZE_MAX),
-                                **self._series_colour(styled))
+                        ax.hist(s, bins=CSIZE_BINS, range=(0, CSIZE_MAX),)
                         title = f"Cluster size -- {n:,} clusters"
                         over = int((s > CSIZE_MAX).sum())
                         if over:        # never truncate silently
@@ -2795,7 +2833,7 @@ class MainWindow(QMainWindow):
             return False
         return True
 
-    def _draw_tdc(self, f, ax, styled, CAP, np):
+    def _draw_tdc(self, f, ax, CAP, np):
         """Histogram of how long after its TDC edge each cluster arrived.
 
         Computed from /TDCEvents rather than read from PixelHits/tof, so it
@@ -2832,7 +2870,7 @@ class MainWindow(QMainWindow):
                 "has a time to measure.")
             return False
         us = good * (TDC_SECONDS_PER_TICK * 1e6)
-        ax.hist(us, bins=200, histtype="step", **self._series_colour(styled))
+        ax.hist(us, bins=200, histtype="step")
         dropped = n - len(good)
         title = f"Time since {ref} -- {len(good):,} {src.lower()}"
         if dropped:                 # never truncate silently
@@ -2871,34 +2909,37 @@ class MainWindow(QMainWindow):
         ax.legend()
         return True
 
-    def _theme_axes(self, ax):
-        """App-palette colours for one axes, when no plot style is loaded."""
-        ax.set_facecolor(self.pal["surface"])
-        for side in ax.spines.values():
-            side.set_color(self.pal["outline_variant"])
-        ax.tick_params(colors=self.pal["text_muted"])
-        ax.xaxis.label.set_color(self.pal["text"])
-        ax.yaxis.label.set_color(self.pal["text"])
-        ax.title.set_color(self.pal["text"])
+    def _glow(self, fig):
+        """The glow under the traces, when the theme wants it.
 
-    def _series_colour(self, styled):
-        """Let the style pick the series colour; override only without one."""
-        return {} if styled else {"color": self.pal["primary"]}
+        From mplcyberpunk, an optional extra: without it the plot is simply
+        drawn without the glow. Only lines glow, so histograms and hitmaps
+        are left as they are.
+        """
+        if not self._manager.theme.glow:
+            return
+        try:
+            import mplcyberpunk
+        except Exception:
+            return
+        for a in fig.axes:
+            if a.get_lines():
+                try:
+                    mplcyberpunk.make_lines_glow(a, diff_linewidth=1.1)
+                except Exception:
+                    pass        # decoration; never worth losing the plot over
 
-    def _style_colorbar(self, cb, styled):
+    def _style_colorbar(self, cb):
         """Theme the colorbar explicitly.
 
         A colorbar lives on its own Axes, so none of the theming applied to the
         main axes reaches it -- its ticks and label keep matplotlib default
-        near-black and vanish against a dark figure.
+        near-black and vanish against a dark figure. Called inside the style
+        context, so rcParams are the theme's.
         """
-        if styled:
-            import matplotlib as mpl
-            text, tick = mpl.rcParams["text.color"], mpl.rcParams["ytick.color"]
-            edge = mpl.rcParams["axes.edgecolor"]
-        else:
-            text, tick = self.pal["text"], self.pal["text_muted"]
-            edge = self.pal["outline_variant"]
+        import matplotlib as mpl
+        text, tick = mpl.rcParams["text.color"], mpl.rcParams["ytick.color"]
+        edge = mpl.rcParams["axes.edgecolor"]
         cb.ax.yaxis.label.set_color(text)
         cb.ax.tick_params(colors=tick)
         if cb.outline is not None:
@@ -2935,7 +2976,7 @@ class MainWindow(QMainWindow):
             img += flat.reshape(h, w)
         return img if img is not None else np.zeros((256, 256), dtype="int64")
 
-    def _draw_hitmap(self, fig, ax, img, styled, np, unit, title):
+    def _draw_hitmap(self, fig, ax, img, np, unit, title):
         """imshow a hitmap, keeping a few runaway pixels off the colour scale.
 
         One hot or reference pixel can hold a third of all hits (a Timepix4
@@ -2958,7 +2999,10 @@ class MainWindow(QMainWindow):
         im = ax.imshow(img, origin="lower", aspect="equal", vmin=0, vmax=vmax)
         self._style_colorbar(
             fig.colorbar(im, ax=ax, label=unit,
-                         extend="max" if note else "neither"), styled)
+                         extend="max" if note else "neither"))
+        # Never a grid over an image, whatever the theme says: it would be
+        # drawn across the pixels it is meant to help read.
+        ax.grid(False)
         ax.set(title=title + note, xlabel="x (pixels)", ylabel="y (pixels)")
 
     # -- window geometry ---------------------------------------------------

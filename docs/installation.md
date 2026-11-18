@@ -21,11 +21,12 @@ PySide6 >= 6.5      required
 h5py, numpy         optional -- Inspect tab, TDC columns
 pandas              optional -- the TDC frame preview
 matplotlib          optional -- the six plots
-komorebi_mpl        optional -- plot styles (falls back to the app palette)
+komorebi_mpl        optional -- the Luna themes' plot styles (falls back to the theme's colours)
+mplcyberpunk        optional -- the glow under plot traces
 ```
 
 `pip install -r requirements.txt` covers all of it; so does
-`pip install -e ".[analysis]"`, which also installs the app itself; see
+`pip install -e ".[analysis,themes]"`, which also installs the app itself; see
 [From source](#from-source).
 
 ## Linux

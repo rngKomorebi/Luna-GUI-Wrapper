@@ -88,4 +88,6 @@ never having. The GUI's own post-processing (TDC columns, timewalk correction)
 gets a light-green **Wrapper options** button beside it instead, shown only
 while one of them is on, as it never changes the Luna command.
 
-The theme is in the **View** menu (light or dark), remembered between runs.
+The **View** menu holds the theme (Luna light, Luna dark, and the ten themes
+from daplis-rtp) and **Preferences...** (Ctrl+,) to change any single colour,
+the font sizes and the marker size. All of it is remembered between runs.

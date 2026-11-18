@@ -22,11 +22,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[analysis,dev]"
+        pip install -e ".[analysis,themes,dev]"
 
     - name: Lint
       run: ruff check src tests
 
-    # The tests exercise the Qt-free core only, so no display is needed.
+    # No display is needed: the theme and title-bar tests run on Qt's
+    # offscreen platform, and skip themselves where the Qt GUI libraries
+    # cannot load.
     - name: Run tests
       run: pytest tests/

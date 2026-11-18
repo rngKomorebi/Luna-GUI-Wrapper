@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 18-11-2026
+
+### Added
+
+- Themes, ported from daplis-rtp. **View → Theme** offers twelve: **Luna
+  light** (the default) and **Luna dark**, which are the previous light and
+  dark palettes unchanged, plus daplis-rtp's ten: Cyberpunk, Midnight, Night
+  wave, Blueprint, High contrast, Daylight, Komorebi, Earth, Solarized and
+  Daplis (publication). Every theme is drawn with the app's own stylesheet, so
+  the layout stays the same, and the yellow Advanced-flags and green
+  wrapper-options buttons keep their meaning.
+- **View → Preferences...** (Ctrl+,), daplis-rtp's two-column window: every
+  window colour (background, panels, input fields, buttons, borders, three
+  text shades, accent), the OK / warning / error colours, the plot colours
+  (figure and plot background, ticks and labels, axes frame, grid, reference
+  lines), five trace colours, the interface and plot font sizes, the marker
+  size, grid and glow. Not modal: changes apply to the window as they are
+  made, and to plots opened afterwards.
+- A dark title bar on every window on Windows 10 (20H1+) and 11, whatever the
+  theme, as in daplis-rtp.
+- Plots follow the theme. The Luna themes keep their komorebi_mpl styles
+  (`sci_pure`, `night_wave`), with any Preferences change laid on top; the
+  other themes draw in their own colours with inward ticks on all four sides.
+  Hitmaps never get a grid.
+- Optional dependency `mplcyberpunk` (the glow), in `requirements.txt` and
+  the new `themes` extra.
+- A Help section, *Themes and preferences*; tests for the themes and the
+  title bar.
+
+### Changed
+
+- The theme, colour changes and sizes are saved with the other
+  settings on exit. A config saved by an earlier version opens on the same
+  look (`light` → Luna light, `dark` → Luna dark).
+- The theme is applied before the window is built. As a result the
+  *Folders to process* and *Files found* tables on the Process tab now start
+  level, as intended; before, the left one sat about 11 px higher.
+- One look across all three tabs. Spin boxes (the timewalk ctot cut, the DCR
+  noisy-pixel cut, Preferences) are now drawn like the other input fields,
+  rounded and in the field colour; before, they were the one field left
+  flat, square and darker. The log, the file summary and the DCR report are
+  now at the interface font size instead of a point below it, which had
+  made the Inspect tab, where those boxes take most of the room, look
+  fainter than the others.
+
 ## [0.5.0] - 18-11-2026
 
 ### Added

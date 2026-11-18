@@ -47,10 +47,11 @@ HITMAP_CLIP_FACTOR = 5.0
 CSIZE_MAX = 40
 CSIZE_BINS = 40
 
-# Plot styles from komorebi_mpl, one per app theme. Importing the package
-# registers them with matplotlib; if it is not installed the plots fall back to
-# colouring themselves from the app palette (see plot_style_context).
-KOMOREBI_STYLES = {"dark": "night_wave", "light": "sci_pure"}
+# Plot styles from komorebi_mpl for the two Luna themes. Importing the package
+# registers them with matplotlib; if it is not installed, those themes' plots
+# are drawn from the theme's own colours like every other theme's (see
+# plot_style_context).
+KOMOREBI_STYLES = {"luna_dark": "night_wave", "luna_light": "sci_pure"}
 
 # Window titles for the Inspect tab's plots, so several open at once stay
 # tellable apart from the taskbar.
@@ -110,21 +111,27 @@ def onscreen_overrides(style_rc):
     return out
 
 
-def plot_style_context(theme_name):
-    """A matplotlib style context for the current app theme.
+def plot_style_context(theme_key, rc, rc_changes=None):
+    """A matplotlib style context for the current theme.
 
-    Returns (context_manager, styled). When komorebi_mpl is missing -- it is an
-    optional dependency -- this hands back a null context and False, and the
-    caller paints the figure from the app palette instead, exactly as before.
+    `rc` is the theme as rcParams (ThemeManager.mpl_rc) and `rc_changes` the
+    part of it the user changed in Preferences (ThemeManager.mpl_rc_changes).
+    A Luna theme is drawn with its komorebi_mpl style, rescaled for the
+    screen, with the user's changes laid on top; every other theme -- and a
+    Luna theme when komorebi_mpl is not installed -- with `rc` alone.
     """
-    name = KOMOREBI_STYLES.get(theme_name)
+    name = KOMOREBI_STYLES.get(theme_key)
     if name:
         try:
             import komorebi_mpl                      # noqa: F401  registers them
             import matplotlib.pyplot as plt
             if name in plt.style.available:
                 overrides = onscreen_overrides(plt.style.library[name])
-                return plt.style.context([name, overrides]), True
+                return plt.style.context([name, overrides, dict(rc_changes or {})])
         except Exception:
             pass
-    return contextlib.nullcontext(), False
+    try:
+        import matplotlib
+        return matplotlib.rc_context(rc)
+    except Exception:
+        return contextlib.nullcontext()
