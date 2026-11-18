@@ -8,9 +8,9 @@ file came from: the two are told apart by their ToT values, and each is
 plotted and labelled in its own units (see
 [Timepix3 and Timepix4](intro.md#timepix3-and-timepix4)).
 
-## The six plots
+## The seven plots
 
-All six read the HDF5 in slices, so multi-GB files do not exhaust memory, and
+All seven read the HDF5 in slices, so multi-GB files do not exhaust memory, and
 each opens in its own modeless window, so several can be compared side by side.
 
 | Plot | Source | Binning / scale |
@@ -21,6 +21,7 @@ each opens in its own modeless window, so several can be compared side by side.
 | **ToT, cluster total** | `Clusters` `sum_tot` | ~300 bins snapped to ToT steps, log y |
 | **Cluster size histogram** | `Clusters` `size` | 40 bins over 0–40, linear y |
 | **Time since TDC edge** | `Clusters` `ctoa` − `TDCEvents` | 200 bins over one trigger period, log y (Timepix3 only) |
+| **Timewalk curve** | `PixelHits` `toa` − its cluster's `ctoa` | delay and jitter per 25 ns ToT bin, log y; the stored curve if its ctot cut matches, else measured from the first 8 M hits. See [Timewalk correction](timewalk.md) |
 
 | | |
 |---|---|

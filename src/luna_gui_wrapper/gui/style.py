@@ -24,6 +24,7 @@ PALETTES = {
         tab_active_bg="#f9fafb", tab_active_fg="#111827",
         selection="#cfe4ff", grid="#e5e7eb",
         flag_bg="#fde047", flag_border="#eab308", flag_fg="#422006",
+        wrap_bg="#bbf7d0", wrap_border="#4ade80", wrap_fg="#14532d",
         heading="#0b5cad",
     ),
     "dark": dict(
@@ -41,6 +42,7 @@ PALETTES = {
         tab_active_bg="#353537", tab_active_fg="#ffffff",
         selection="#0a3a66", grid="#2a2a2c",
         flag_bg="#ffd60a", flag_border="#e6c000", flag_fg="#1c1c1e",
+        wrap_bg="#86efac", wrap_border="#4ade80", wrap_fg="#052e16",
         heading="#5ac8fa",
     ),
 }
@@ -323,6 +325,15 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
         font-weight: 600;
     }}
     QPushButton[adv="on"]:hover {{ border-color: {pal['flag_fg']}; }}
+    /* Its light-green sibling: the wrapper's own post-processing options
+       (TDC columns, timewalk), visible only while one is on. */
+    QPushButton[wrap="on"] {{
+        background: {pal['wrap_bg']};
+        border-color: {pal['wrap_border']};
+        color: {pal['wrap_fg']};
+        font-weight: 600;
+    }}
+    QPushButton[wrap="on"]:hover {{ border-color: {pal['wrap_fg']}; }}
     QPushButton[danger="true"]:hover {{
         background: {pal['surface_container_high']};
         border-color: {pal['error']};

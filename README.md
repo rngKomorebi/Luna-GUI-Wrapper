@@ -7,7 +7,8 @@ A desktop GUI for batch-processing Timepix3 (`.tpx3`) and Timepix4 (`.tpx4`)
 raw data with ASI Luna's `tpx3dump` and `tpx4dump`. Point it at your
 measurement folders: it queues every raw file, names each `.hdf5` after the
 measurement it came from, runs the converter over the whole batch, and lets
-you inspect the results (summary, row viewer, plots, TDC columns).
+you inspect the results (summary, row viewer, plots, TDC columns,
+timewalk-corrected times).
 
 > **This is only a wrapper. Luna is not included.** The project contains no
 > part of Luna and cannot convert a single file by itself. You need a licensed
@@ -72,8 +73,9 @@ trigger edges to tag hits with. More in the
 - [Overview](docs/intro.md): what it does, Timepix3 vs Timepix4, the tabs
 - [Installation](docs/installation.md): Linux, Windows (WSL), from source
 - [Usage](docs/usage.md): first run, worked examples, name templates
-- [Inspect HDF5](docs/inspect.md): summary, row viewer, the six plots
+- [Inspect HDF5](docs/inspect.md): summary, row viewer, the seven plots
 - [TDC](docs/tdc.md): TDC columns and reading them back from Python
+- [Timewalk correction](docs/timewalk.md): corrected times without a TDC
 - [Troubleshooting](docs/troubleshooting.md)
 - [Contributing](docs/contribute.md) and [CONTRIBUTING.md](CONTRIBUTING.md)
 

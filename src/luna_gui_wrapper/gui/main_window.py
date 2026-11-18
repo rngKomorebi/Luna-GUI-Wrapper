@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox, QFileDialog, QFrame, QGridLayout, QGroupBox,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QMainWindow,
     QMessageBox, QPlainTextEdit, QProgressBar, QRadioButton, QScrollArea,
-    QSplitter, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout,
+    QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout,
     QWidget)
 
 from .. import __version__
@@ -45,6 +45,9 @@ from ..functions.tdc import (TDC_DATASET, TDC_REFERENCES,
                              describe_tdc_types, read_tdc_events, read_tdcs,
                              read_with_tdc, tag_times_with_tdc,
                              tdc_reference_edges)
+from ..functions.timewalk import (TW_CURVE, TW_DEFAULT_CTOT_CUT_NS,
+                                  TW_FIELD_ATTR, TW_FIELDS, TW_STAMP,
+                                  add_timewalk_columns, measure_timewalk)
 from .dataset_view import DatasetViewer
 from .help_window import SECTIONS, HelpWindow
 from .models import FolderModel, JobModel
@@ -250,8 +253,9 @@ class MainWindow(QMainWindow):
                 w.setVisible(d.key in f.detectors)
         for cap, group in self.flag_caps:
             cap.setVisible(any(d.key in f.detectors for f in group))
-        # tpx4dump records no TDC edges, so there is nothing to tag from.
-        self.g_post.setVisible(d is TPX3)
+        # tpx4dump records no TDC edges, so there is nothing to tag from. The
+        # timewalk row stays: it needs only hits and clusters.
+        self.w_tdc_row.setVisible(d is TPX3)
         self.b_add_folders.setToolTip(
             f"Queue every {d.suffix} found under one or more folders")
         self.refresh_backend()
@@ -300,6 +304,11 @@ class MainWindow(QMainWindow):
         # button turns yellow the moment anything deviates from the plain run,
         # and lists it all on a click.
         self.b_adv = button("Advanced flags", self.show_adv_flags)
+        # Its green sibling: what this GUI does after Luna (TDC columns,
+        # timewalk), shown only while one of those is switched on.
+        self.b_wrap = button("Wrapper options", self.show_wrapper_options)
+        self.b_wrap.setProperty("wrap", "on")
+        self.b_wrap.setVisible(False)
         # Which detector the batch is for: picks the Luna converter, the raw
         # files a folder scan queues, and the flags on offer.
         self.b_tpx3 = button("Timepix3", lambda: self.switch_detector("tpx3"),
@@ -309,7 +318,8 @@ class MainWindow(QMainWindow):
         cap_det = QLabel("Detector")
         cap_det.setProperty("muted", True)
         lay.addWidget(row(cap_det, self.b_tpx3, self.b_tpx4, vline(),
-                          self.lbl_status, None, self.b_adv, self.b_setup,
+                          self.lbl_status, None, self.b_wrap, self.b_adv,
+                          self.b_setup,
                           spacing=6))
 
         # Additive actions on the left, the destructive one pushed to the far
@@ -575,13 +585,20 @@ class MainWindow(QMainWindow):
                      r + 3, 0, 1, 3)
         lay.addWidget(g_opt)
 
-        # After processing ---------------------------------------------------
-        # Not a tpx3dump flag: the GUI reopens the finished .hdf5 and writes
-        # the TDC columns into it itself. Kept visually apart from the flags
-        # above so it is never mistaken for one.
-        g_post = self.g_post = QGroupBox("After processing  (this GUI, not Luna)")
-        gp = QHBoxLayout(g_post)
+        # Wrapper options ----------------------------------------------------
+        # Not Luna flags: after Luna finishes, the GUI reopens each .hdf5 and
+        # writes these columns into it itself. Kept in a box of their own so
+        # they are never mistaken for flags passed to tpx3dump / tpx4dump.
+        g_post = self.g_post = QGroupBox(
+            "Wrapper options  (run by this GUI after Luna, not Luna flags)")
+        gpv = QVBoxLayout(g_post)
+        gpv.setSpacing(6)
+        # Its own widget, so Timepix4 can hide the TDC row and keep the rest.
+        self.w_tdc_row = QWidget()
+        gp = QHBoxLayout(self.w_tdc_row)
+        gp.setContentsMargins(0, 0, 0, 0)
         gp.setSpacing(8)
+        gpv.addWidget(self.w_tdc_row)
         self.cb_tdc = QCheckBox("Add TDC columns to each output .hdf5")
         self.cb_tdc.setChecked(bool(self.cfg.get("tdc_columns", False)))
         self.cb_tdc.setToolTip(
@@ -600,6 +617,39 @@ class MainWindow(QMainWindow):
         self.cb_tdc.toggled.connect(self.c_tdcref.setEnabled)
         gp.addWidget(self.c_tdcref)
         gp.addStretch(1)
+
+        # Timewalk: measured from the file's own clusters, no TDC needed.
+        self.cb_tw = QCheckBox("Timewalk-correct each output .hdf5")
+        self.cb_tw.setChecked(bool(self.cfg.get("timewalk_columns", False)))
+        self.cb_tw.setToolTip(
+            "Measure the timewalk curve from the file's own clusters (each "
+            "hit's ToA relative to the largest-ToT pixel of its cluster) and "
+            "add the timewalk-corrected cluster time as a last column of "
+            "Clusters (ctoa_tw), plus the curve as /TimewalkCurve. Needs pixel "
+            "hits and clusters; no TDC. Adding a column rewrites the file once, "
+            "which needs free space for one more copy of it.")
+        self.sp_tw_cut = self._ctot_cut_spin(
+            self.cfg.get("timewalk_ctot_cut", TW_DEFAULT_CTOT_CUT_NS))
+        self.cb_tw_hits = QCheckBox("also every pixel hit (slower)")
+        self.cb_tw_hits.setChecked(bool(self.cfg.get("timewalk_hits", False)))
+        self.cb_tw_hits.setToolTip(
+            "Also add the corrected time of every pixel hit as a last column "
+            "of PixelHits (toa_tw): 8 more bytes per hit. Without it, "
+            "read_with_timewalk() still computes toa_tw on the fly from the "
+            "stored curve.")
+        for w in (self.sp_tw_cut, self.cb_tw_hits):
+            w.setEnabled(self.cb_tw.isChecked())
+            self.cb_tw.toggled.connect(w.setEnabled)
+        gt = QHBoxLayout()
+        gt.setSpacing(8)
+        gt.addWidget(self.cb_tw)
+        gt.addSpacing(10)
+        gt.addWidget(QLabel("ctot cut:"))
+        gt.addWidget(self.sp_tw_cut)
+        gt.addSpacing(10)
+        gt.addWidget(self.cb_tw_hits)
+        gt.addStretch(1)
+        gpv.addLayout(gt)
         lay.addWidget(g_post)
         lay.addStretch(1)
 
@@ -652,6 +702,23 @@ class MainWindow(QMainWindow):
         e.setFixedWidth(170)
         return e
 
+    @staticmethod
+    def _ctot_cut_spin(value):
+        """The timewalk ctot cut, in ns. Same box on the Advanced and Inspect
+        tabs, kept in step by _connect_option_signals."""
+        sp = QSpinBox()
+        sp.setRange(0, 25000)
+        sp.setSingleStep(25)
+        sp.setSuffix(" ns")
+        sp.setValue(int(float(value)))
+        sp.setToolTip(
+            "Only clusters whose largest pixel ToT is at least this build the "
+            "timewalk curve, so the reference pixel walks little itself. "
+            "1000 ns keeps that below ~5 ns on a Timepix3Cam. Lower it if a "
+            "file has few bright clusters. Not Luna's --ctot-cut, which only "
+            "applies to Luna's own timewalk statistics.")
+        return sp
+
     def _pick_flag_file(self, edit):
         p, _ = QFileDialog.getOpenFileName(
             self, "Select an earlier tpx3dump output", edit.text(),
@@ -690,9 +757,16 @@ class MainWindow(QMainWindow):
             else:
                 w.textChanged.connect(self.update_adv_summary)
         self.c_tdcref.currentTextChanged.connect(self.update_adv_summary)
-        for w in (self.cb_skip, self.cb_tdc, self.rb_beside, self.rb_flat,
-                  self.rb_mirror):
+        self.sp_tw_cut.valueChanged.connect(self.update_adv_summary)
+        for w in (self.cb_skip, self.cb_tdc, self.cb_tw, self.cb_tw_hits,
+                  self.rb_beside, self.rb_flat, self.rb_mirror):
             w.toggled.connect(self.update_adv_summary)
+        # The ctot cut and the per-hit choice also live on the Inspect tab;
+        # setValue / setChecked emit nothing when unchanged, so pairs settle.
+        self.sp_tw_cut.valueChanged.connect(self.sp_tw_cut_i.setValue)
+        self.sp_tw_cut_i.valueChanged.connect(self.sp_tw_cut.setValue)
+        self.cb_tw_hits.toggled.connect(self.cb_tw_hits_i.setChecked)
+        self.cb_tw_hits_i.toggled.connect(self.cb_tw_hits.setChecked)
         # One TDC reference, two places to set it. setCurrentText is a no-op
         # when the text already matches, so Qt emits nothing back and the pair
         # settles instead of ping-ponging.
@@ -760,6 +834,10 @@ class MainWindow(QMainWindow):
         Timepix4: tpx4dump records no TDC edges to tag from."""
         return self.cb_tdc.isChecked() and self.det is TPX3
 
+    def timewalk_after_run(self):
+        """Whether each finished file gets timewalk-corrected times written."""
+        return self.cb_tw.isChecked()
+
     def advanced_bits(self):
         """Everything that deviates from the plain run, one item per setting."""
         bits = []
@@ -778,9 +856,20 @@ class MainWindow(QMainWindow):
                                                  detector=self.det.key)]
         if self.e_extra.text().strip():
             bits.append("extra arguments: " + self.e_extra.text().strip())
+        return bits
+
+    def wrapper_bits(self):
+        """What this GUI does to each output after Luna, one item each.
+        Kept apart from advanced_bits: none of it changes the Luna command."""
+        bits = []
         if self.tdc_after_run():
             bits.append("TDC columns after processing (" +
                         self.c_tdcref.currentText() + ")")
+        if self.timewalk_after_run():
+            bits.append(f"timewalk correction after processing (ctot cut "
+                        f"{self.sp_tw_cut.value()} ns, clusters"
+                        + (" and every pixel hit)" if self.cb_tw_hits.isChecked()
+                           else ")"))
         return bits
 
     def update_adv_summary(self, *_a):
@@ -793,19 +882,36 @@ class MainWindow(QMainWindow):
                               + self.plain_command())
         self.b_adv.style().unpolish(self.b_adv)
         self.b_adv.style().polish(self.b_adv)
+        # Green, and only there while something is on: the GUI's own steps
+        # after Luna, so they are never mistaken for Luna flags.
+        wbits = self.wrapper_bits()
+        self.b_wrap.setVisible(bool(wbits))
+        self.b_wrap.setText(f"Wrapper options ({len(wbits)})")
+        self.b_wrap.setToolTip("Run by this GUI after Luna, not Luna flags:\n"
+                               + "\n".join(wbits))
 
-    def show_adv_flags(self):
-        """List every setting in effect, one per row."""
-        bits = self.advanced_bits()
+    def show_wrapper_options(self):
+        self.show_adv_flags(wrapper=True)
+
+    def show_adv_flags(self, wrapper=False):
+        """List every setting in effect, one per row: the Luna-side ones, or
+        with `wrapper` the GUI's own post-processing."""
+        bits = self.wrapper_bits() if wrapper else self.advanced_bits()
         dlg = QDialog(self)
-        dlg.setWindowTitle("Advanced flags in effect")
+        dlg.setWindowTitle("Wrapper options in effect" if wrapper
+                           else "Advanced flags in effect")
         dlg.resize(620, 380)
         lay = QVBoxLayout(dlg)
         lay.setContentsMargins(14, 14, 14, 12)
         lay.setSpacing(8)
         if bits:
-            head = QLabel(f"{len(bits)} setting(s) differ from the plain run "
-                          "and apply to every queued file:")
+            head = QLabel(
+                f"After Luna finishes each file, this GUI runs {len(bits)} "
+                "step(s) on its output. They do not change the Luna command:"
+                if wrapper else
+                f"{len(bits)} setting(s) differ from the plain run and apply "
+                "to every queued file:")
+            head.setWordWrap(True)
             head.setProperty("muted", True)
             lay.addWidget(head)
             lst = QListWidget()
@@ -853,6 +959,9 @@ class MainWindow(QMainWindow):
                 w.clear()
         self.cb_tdc.setChecked(False)
         self.c_tdcref.setCurrentText(TDC_REFERENCES[0])
+        self.cb_tw.setChecked(False)
+        self.sp_tw_cut.setValue(int(TW_DEFAULT_CTOT_CUT_NS))
+        self.cb_tw_hits.setChecked(False)
         self.recompute_outputs()
         self.log("Advanced settings reset to defaults.")
 
@@ -1778,23 +1887,37 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._start_next)
 
     def _tag_output(self, job):
-        """Post-process one finished output: write its TDC columns.
+        """Post-process one finished output: the wrapper options.
 
         Runs inline between jobs on purpose -- it is the same sequential batch
         the user started, and doing it here means the file is complete before
-        the queue moves on. Never fails the job: the .hdf5 tpx3dump wrote is
-        good either way, so a TDC problem is reported and the run continues.
+        the queue moves on. Never fails the job: the .hdf5 Luna wrote is good
+        either way, so a problem is reported and the run continues.
         """
-        if not self.tdc_after_run():
-            return ""
-        ref = self.c_tdcref.currentText()
-        try:
-            res = add_tdc_columns(job.dst, ref, log=self.log)
-        except Exception as exc:
-            self.log("  TDC columns skipped: " + str(exc))
-            return ", no TDC"
-        tagged = sum(v["tagged"] for v in res.values())
-        return f", TDC {ref} ({tagged:,} rows)"
+        note = ""
+        if self.tdc_after_run():
+            ref = self.c_tdcref.currentText()
+            try:
+                res = add_tdc_columns(job.dst, ref, log=self.log)
+                tagged = sum(v["tagged"] for v in res.values())
+                note += f", TDC {ref} ({tagged:,} rows)"
+            except Exception as exc:
+                self.log("  TDC columns skipped: " + str(exc))
+                note += ", no TDC"
+        if self.timewalk_after_run():
+            try:
+                self._busy(True)
+                res = add_timewalk_columns(
+                    job.dst, ctot_cut_ns=self.sp_tw_cut.value(),
+                    pixel_hits=self.cb_tw_hits.isChecked(), detector=self.det,
+                    log=self.log)
+                note += f", timewalk ({res[TW_CURVE]['delay_ns_lowest_tot']:.0f} ns max)"
+            except Exception as exc:
+                self.log("  Timewalk correction skipped: " + str(exc))
+                note += ", no timewalk"
+            finally:
+                self._busy(False)
+        return note
 
     def _finish(self):
         self.b_run.setEnabled(True)
@@ -1841,6 +1964,9 @@ class MainWindow(QMainWindow):
             **self.flag_values(),
             "tdc_columns": self.cb_tdc.isChecked(),
             "tdc_reference": self.c_tdcref.currentText(),
+            "timewalk_columns": self.cb_tw.isChecked(),
+            "timewalk_ctot_cut": self.sp_tw_cut.value(),
+            "timewalk_hits": self.cb_tw_hits.isChecked(),
             "extra": self.e_extra.text(),
             "theme": self.theme_name,
         })
@@ -1903,6 +2029,7 @@ class MainWindow(QMainWindow):
             button("ToT, cluster total", lambda: self.plot("stot")),
             button("Cluster size histogram", lambda: self.plot("csize")),
             button("Time since TDC edge", lambda: self.plot("tdc")),
+            button("Timewalk curve", lambda: self.plot("timewalk")),
             None))
 
         self.c_tdcref_i = QComboBox()
@@ -1916,6 +2043,19 @@ class MainWindow(QMainWindow):
             QLabel("TDC reference:"), self.c_tdcref_i,
             button("Add TDC columns to this file", self.write_tdc_columns),
             button("Preview frame", self.preview_tdc_frame),
+            None))
+
+        self.sp_tw_cut_i = self._ctot_cut_spin(
+            self.cfg.get("timewalk_ctot_cut", TW_DEFAULT_CTOT_CUT_NS))
+        self.cb_tw_hits_i = QCheckBox("also every pixel hit")
+        self.cb_tw_hits_i.setChecked(bool(self.cfg.get("timewalk_hits", False)))
+        self.cb_tw_hits_i.setToolTip(
+            "Also add toa_tw as a last column of PixelHits: 8 more bytes per "
+            "hit. Shared with the same setting on the Advanced tab.")
+        lay.addWidget(row(
+            QLabel("Timewalk ctot cut:"), self.sp_tw_cut_i, self.cb_tw_hits_i,
+            button("Add timewalk columns to this file",
+                   self.write_timewalk_columns),
             None))
 
         self.isum = QPlainTextEdit()
@@ -2007,6 +2147,7 @@ class MainWindow(QMainWindow):
                     lines.append(f"   mean cluster size (first {len(cl):,}): "
                                  f"{cl['size'].mean():.2f}")
                 lines.extend(self._tdc_summary(f, np, det))
+                lines.extend(self._timewalk_summary(f))
                 if "ExposureTimeBoundaries" in f:
                     etb = f["ExposureTimeBoundaries"][:]
                     lines.append(f"exposure time boundaries: {len(etb)} entries, "
@@ -2073,6 +2214,79 @@ class MainWindow(QMainWindow):
                            + ("" if a.get("written_by") == TDC_STAMP
                               else "  [not written by this GUI]"))
         return out
+
+    def _timewalk_summary(self, f):
+        """The timewalk block of the Inspect summary: curve and columns."""
+        if TW_CURVE not in f:
+            return ["timewalk       not corrected (no /" + TW_CURVE + ")"]
+        a = f[TW_CURVE].attrs
+        c = f[TW_CURVE][:]
+        out = [f"timewalk       curve from {int(a.get('hits_used', 0)):,} hits, "
+               f"ctot cut {a.get('ctot_cut_ns', '?'):g} ns"
+               + ("" if a.get("written_by") == TW_STAMP
+                  else "  [not written by this GUI]")]
+        if len(c):
+            out.append(f"   {c['delay_ns'][0]:.1f} ns at ToT {c['tot_ns'][0]:.0f} ns"
+                       f" .. {c['delay_ns'][-1]:.2f} ns at ToT "
+                       f"{c['tot_ns'][-1]:.0f} ns")
+        for tname, (_t, _tot, field_name) in TW_FIELDS.items():
+            if tname in f and field_name in (f[tname].dtype.names or ()):
+                mine = f[tname].attrs.get(TW_FIELD_ATTR) == field_name
+                out.append(f"   {tname}/{field_name}: last column"
+                           + ("" if mine else "  [not written by this GUI]"))
+        return out
+
+    # -- timewalk columns -------------------------------------------------
+
+    def write_timewalk_columns(self):
+        """Measure this file's timewalk curve and write corrected times."""
+        h5py, np = require_h5py(self)
+        if h5py is None:
+            return
+        path = Path(self.e_h5.text())
+        if not path.is_file():
+            QMessageBox.information(self, APP_NAME, "Open an HDF5 file first.")
+            return
+        cut = self.sp_tw_cut_i.value()
+        hits = self.cb_tw_hits_i.isChecked()
+        if QMessageBox.question(
+                self, APP_NAME,
+                f"Add timewalk-corrected times to\n{path.name}\n\n"
+                f"ctot cut: {cut} ns\n\n"
+                "This modifies the file. It adds ctoa_tw as the last column of "
+                "Clusters" + (" and toa_tw as the last column of PixelHits"
+                              if hits else "")
+                + ", and the curve as /TimewalkCurve. The first time, the file "
+                "is rewritten once (via a temporary copy beside it, so it "
+                "needs that much free space); Luna's other columns are kept "
+                "as they are.\n\nContinue?"
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.tabs.setCurrentWidget(self.tab_inspect)
+        self.log(f"Adding timewalk columns to {path.name} (ctot cut {cut} ns)")
+        try:
+            self._busy(True)
+            with h5py.File(path, "r") as f:
+                det, _judged = self._file_detector(f)
+            res = add_timewalk_columns(path, ctot_cut_ns=cut, pixel_hits=hits,
+                                       detector=det, log=self.log)
+        except Exception as exc:
+            self.log("  FAILED: " + str(exc))
+            QMessageBox.critical(self, APP_NAME,
+                                 "Could not write the timewalk columns.\n\n"
+                                 + str(exc))
+            return
+        finally:
+            self._busy(False)
+        self.open_h5()          # refresh the dataset table with the new ones
+        c = res[TW_CURVE]
+        QMessageBox.information(
+            self, APP_NAME,
+            f"Timewalk columns written.\n\nCurve from {c['hits_used']:,} hits "
+            f"in {c['bins']} ToT bins; {c['delay_ns_lowest_tot']:.1f} ns of "
+            "walk at the lowest ToT.\n\n" + "\n".join(
+                f"{k}/{v['field']}: {v['rows']:,} rows" for k, v in res.items()
+                if k != TW_CURVE))
 
     # -- TDC columns ------------------------------------------------------
 
@@ -2244,6 +2458,8 @@ class MainWindow(QMainWindow):
             with h5py.File(path, "r") as f:
                 if what == "tdc":
                     return self._draw_tdc(f, ax, styled, CAP, np)
+                if what == "timewalk":
+                    return self._draw_timewalk(f, ax, CAP, np)
                 # Only the pixel hitmap comes from PixelHits; everything else
                 # is a cluster-level quantity and reads Clusters.
                 if what == "hitmap":
@@ -2369,6 +2585,36 @@ class MainWindow(QMainWindow):
             title += f"   ({dropped:,} before the first edge)"
         ax.set(title=title, xlabel="t - t(TDC)  (us)", ylabel="Counts (-)",
                yscale="log")
+        return True
+
+    def _draw_timewalk(self, f, ax, CAP, np):
+        """Timewalk (mean delay) and jitter (sigma) against hit ToT.
+
+        The stored /TimewalkCurve when its ctot cut matches the box, else
+        measured now from the first CAP hits -- so the cut can be tried out
+        before anything is written.
+        """
+        cut = self.sp_tw_cut_i.value()
+        stored = (TW_CURVE in f and
+                  float(f[TW_CURVE].attrs.get("ctot_cut_ns", -1)) == cut)
+        if stored:
+            curve = f[TW_CURVE][:]
+            used = int(f[TW_CURVE].attrs.get("hits_used", 0))
+            src = "stored in the file"
+        else:
+            det, _judged = self._file_detector(f)
+            try:
+                curve, used = measure_timewalk(f, det, cut, CAP, np)
+            except ValueError as exc:
+                QMessageBox.information(self, APP_NAME, str(exc))
+                return False
+            src = "measured now, not stored"
+        ax.plot(curve["tot_ns"], curve["delay_ns"], ".-", label="Timewalk (mean delay)")
+        ax.plot(curve["tot_ns"], curve["sigma_ns"], ".-", label="Jitter (sigma)")
+        ax.set_yscale("log")
+        ax.set(title=f"Timewalk, ctot cut {cut} ns -- {used:,} hits\n({src})",
+               xlabel="Hit ToT (ns)", ylabel="Time (ns)")
+        ax.legend()
         return True
 
     def _series_colour(self, styled):

@@ -61,6 +61,7 @@ PLOT_TITLES = {
     "stot": "ToT, cluster total",
     "csize": "Cluster size histogram",
     "tdc": "Time since TDC edge",
+    "timewalk": "Timewalk curve",
 }
 
 # The komorebi styles are authored for a 16x10 in export figure: 30 pt text and

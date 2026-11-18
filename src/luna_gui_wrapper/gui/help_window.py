@@ -38,6 +38,7 @@ SECTIONS = [
     ("inspect", "Inspect HDF5 tab"),
     ("file", "What is in the file"),
     ("tdc", "TDC"),
+    ("timewalk", "Timewalk correction"),
     ("trouble", "Troubleshooting"),
     ("about", "Settings and about"),
 ]
@@ -64,6 +65,10 @@ PLOT_NOTES = {
               "counted in the title"),
     "tdc": ("Clusters ctoa - TDCEvents", "time since the reference edge, over "
             "one trigger period, log y"),
+    "timewalk": ("PixelHits toa - its cluster's ctoa", "timewalk (mean delay) "
+                 "and jitter against hit ToT, log y; the stored curve when its "
+                 "ctot cut matches the box, else measured from the first 8 M "
+                 "hits without writing anything"),
 }
 
 TROUBLE = [
@@ -99,6 +104,10 @@ TROUBLE = [
      "Reprocess the .tpx3."),
     ("Most rows report no TDC edge",
      "They come before the first reference edge — normal at the start of a run."),
+    ("\"Too few multi-pixel clusters\" for the timewalk",
+     "Few clusters reach the ctot cut (dim light, or mostly single-pixel "
+     "clusters). Lower the cut, or check that the file was clustered and kept "
+     "its pixel hits."),
     ("Batch is slow on Windows",
      "/mnt/d goes through WSL's file bridge; for big jobs copy the raw data "
      "into the WSL filesystem."),
@@ -249,6 +258,10 @@ kind when the file is done, so the window stays responsive.</li>
 yellow with a count as soon as anything differs: output placement, renaming,
 overwriting, each flag passed. Click it for the full list, one setting per
 row.</li>
+<li><b>Wrapper options</b> (light green, beside it): shown only while this
+GUI's own post-processing is on — TDC columns or the timewalk correction.
+These run after Luna and never change the Luna command, so they are counted
+here rather than in Advanced flags. Click it for the list.</li>
 <li><b>Add folders...</b> queues every <code>.tpx3</code> (or, on Timepix4,
 <code>.tpx4</code>) under one or more folders;
 <b>Search subfolders</b> reaches the files inside each measurement's
@@ -309,11 +322,19 @@ overwrite everything, or tick <b>Overwrite</b> on single rows instead.</li>
 note on each; see <a href="#flags">Luna flags</a>. Blank means the
 converter's own default. <b>extra arguments</b> is passed verbatim after them,
 for anything a newer Luna adds.</p>
-<h3>After processing (Timepix3 only)</h3>
-<p><b>Add TDC columns to each output .hdf5</b>: once <code>tpx3dump</code>
-finishes a file, this GUI tags every hit and cluster with the TDC edge it
-follows; see <a href="#tdc">TDC</a>. Not a Luna flag, and hidden on Timepix4,
-whose files carry no TDC edges.</p>
+<h3>Wrapper options</h3>
+<p>Not Luna flags: once the converter finishes a file, this GUI reopens it and
+writes extra datasets into it itself.</p>
+<ul>
+<li><b>Add TDC columns to each output .hdf5</b> (Timepix3 only): tags every
+hit and cluster with the TDC edge it follows; see <a href="#tdc">TDC</a>.
+Hidden on Timepix4, whose files carry no TDC edges.</li>
+<li><b>Timewalk-correct each output .hdf5</b>: measures the file's timewalk
+curve from its own clusters and writes corrected cluster times; see
+<a href="#timewalk">Timewalk correction</a>. <b>ctot cut</b> picks the
+clusters that build the curve; <b>also every pixel hit</b> writes a corrected
+time per hit too, at the cost of one more pass over all hits.</li>
+</ul>
 <h3>Buttons</h3>
 <ul>
 <li><b>Preview commands</b>: prints the exact command for every queued file,
@@ -362,8 +383,11 @@ the TDC plot; the same setting as on the Advanced tab.</li>
 <li><b>Add TDC columns to this file</b>: writes them now, for this file.</li>
 <li><b>Preview frame</b>: the first rows of the data joined with their TDC
 columns.</li>
+<li><b>Timewalk ctot cut</b>, <b>also every pixel hit</b>: the same settings
+as on the Advanced tab. <b>Add timewalk columns to this file</b> writes them
+now, for this file.</li>
 </ul>
-<p>The six plots read the file in slices, so large files are fine, and each
+<p>The seven plots read the file in slices, so large files are fine, and each
 opens in its own window for side-by-side comparison.</p>
 {plots}
 
@@ -377,6 +401,10 @@ opens in its own window for side-by-side comparison.</p>
 acquisition.</li>
 <li><code>PixelHitsTDC</code>, <code>ClustersTDC</code>: the TDC columns, if
 this GUI wrote them.</li>
+<li><code>TimewalkCurve</code>: the timewalk curve, if this GUI corrected
+the file. The corrected times themselves are the last column of the tables:
+<code>Clusters/ctoa_tw</code>, and <code>PixelHits/toa_tw</code> with
+<b>also every pixel hit</b>.</li>
 </ul>
 <p>Within one file all timestamps count ticks of one clock, so subtracting
 them is meaningful. The units differ by detector, per Luna's own unit-conversion
@@ -407,6 +435,47 @@ replace TDC columns it did not write.</p>
 both use the same edge they agree exactly; the TDC columns can be recomputed
 against another edge without reprocessing the <code>.tpx3</code>. <b>Any
 edge</b> tags from the latest edge of any type.</p>
+
+<a name="timewalk"></a><h2>Timewalk correction</h2>
+<p>A small signal crosses the threshold later than a large one, so a pixel's
+ToA depends on its own ToT: tens of ns, up to ~100 ns, for the faintest hits.
+No TDC or test pulses are needed to correct it. All pixels of one cluster fired
+at the same moment, and the pixel with the largest ToT (<code>ctot</code>,
+whose ToA is <code>ctoa</code>) walks least, so it serves as the clock.</p>
+<ol>
+<li>For every hit of a cluster with <code>ctot</code> &ge; the <b>ctot
+cut</b>, take <code>toa - ctoa</code> (the reference pixel itself is left
+out).</li>
+<li>Per 25 ns ToT bin, find the peak of that delay (an iterated 3-sigma
+truncated mean, robust against pile-up background). That is the
+<b>curve</b>, delay(ToT); its width is the jitter. The first 50 M hits are
+used, which takes ~10 s.</li>
+<li>Add <code>ctoa_tw = ctoa - delay(ctot)</code> as the last column of
+<code>Clusters</code>, and with <b>also every pixel hit</b>
+<code>toa_tw = toa - delay(tot)</code> as the last column of
+<code>PixelHits</code>, in the same ticks as the source. The curve goes to
+<code>/TimewalkCurve</code> (<code>tot_ns</code>, <code>delay_ns</code>,
+<code>sigma_ns</code>, <code>n</code>) with the settings as attributes.</li>
+</ol>
+<p>Correcting each pixel on its own means the reference's own walk drops out
+of time differences. The curve is relative to the high-ToT limit; the
+constant offset to the true arrival time needs an external reference and does
+not matter for time differences between photons.</p>
+<p>A focused spot is not needed: dark counts across the whole sensor work as
+well, as long as clusters have more than one pixel. The curve depends on the
+threshold and other settings and varies a little across the chip (a few ns at
+mid ToT), so it is measured per file.</p>
+<p>An HDF5 table cannot grow a column in place, so the first correction of a
+file rewrites it once: into a temporary file beside it, swapped in only when
+complete, so it needs free space for one more copy. Luna's columns, chunking
+and attributes are kept as they were. Later runs update the column in place;
+a column added earlier is always updated too, so it never goes stale. The GUI
+refuses to touch a <code>ctoa_tw</code>/<code>toa_tw</code> column it did not
+add.</p>
+<p>Not the same as Luna's own <code>--calculate-timewalk-statistics</code> /
+<code>apply-timewalk-correction</code> (Timepix3 only), which averages the
+delay without rejecting background and rewrites <code>toa</code> in
+place.</p>
 
 <a name="trouble"></a><h2>Troubleshooting</h2>
 {trouble}

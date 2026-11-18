@@ -23,6 +23,7 @@ queue Timepix3 ``.tpx3`` or Timepix4 ``.tpx4`` files, get sensibly named
    usage
    inspect
    tdc
+   timewalk
    troubleshooting
    contribute
    license

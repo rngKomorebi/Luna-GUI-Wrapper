@@ -25,14 +25,17 @@ class Detector:
     toa_seconds: float    # one ToA / ctoa / timestamp unit, in seconds
     tot_seconds: float    # one ToT / ctot / sum_tot unit, in seconds
     tot_lsb_ns: float     # the ToT quantisation step, in ns
+    toa_lsb_ns: float     # the fine ToA step, in ns
 
 
 TPX3 = Detector("tpx3", "Timepix3", "tpx3dump", ".tpx3",
-                toa_seconds=1e-13, tot_seconds=1e-9, tot_lsb_ns=25.0)
-# The ToT step is what tpx4dump writes: every value in the example files is a
-# multiple of 1 953 125 units of 1e-16 s.
+                toa_seconds=1e-13, tot_seconds=1e-9, tot_lsb_ns=25.0,
+                toa_lsb_ns=1.5625)
+# Both steps are what tpx4dump writes: every ToA and ToT in the example files
+# is a multiple of 1 953 125 units of 1e-16 s.
 TPX4 = Detector("tpx4", "Timepix4", "tpx4dump", ".tpx4",
-                toa_seconds=1e-16, tot_seconds=1e-16, tot_lsb_ns=0.1953125)
+                toa_seconds=1e-16, tot_seconds=1e-16, tot_lsb_ns=0.1953125,
+                toa_lsb_ns=0.1953125)
 
 DETECTORS = {d.key: d for d in (TPX3, TPX4)}
 
@@ -47,6 +50,8 @@ def field_units(det: Detector) -> dict:
             "tof": "100 fs ticks since the --tof-tdc-reference edge; -1 = unset",
             "tdc": "100 fs ticks, timestamp of the reference edge",
             "tdc_dt": "100 fs ticks since the reference edge; -1 = no edge yet",
+            "toa_tw": "100 fs ticks, toa minus its timewalk",
+            "ctoa_tw": "100 fs ticks, ctoa minus its timewalk",
             "tot": "ns, in steps of 25 ns",
             "ctot": "ns, the cluster's peak-pixel ToT",
             "sum_tot": "ns, the cluster's total ToT",
@@ -58,6 +63,8 @@ def field_units(det: Detector) -> dict:
     return {
         "toa": "100 as ticks (1e-16 s)",
         "ctoa": "100 as ticks (1e-16 s)",
+        "toa_tw": "100 as ticks (1e-16 s), toa minus its timewalk",
+        "ctoa_tw": "100 as ticks (1e-16 s), ctoa minus its timewalk",
         "tof": "-1: tpx4dump has no ToF option",
         "tot": "100 as ticks (1e-16 s), in steps of 0.195 ns",
         "ctot": "100 as ticks (1e-16 s), the cluster's peak-pixel ToT",

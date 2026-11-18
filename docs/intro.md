@@ -28,7 +28,7 @@ had you typed the command yourself.
 | Decoding raw data, clustering, writing the `.hdf5` | **Luna's `tpx3dump` / `tpx4dump`**: your copy, not shipped here |
 | Finding the files, naming the outputs, queueing, running, logging | this GUI |
 | Running the Linux-only converter from Windows, through WSL | this GUI |
-| Reading the `.hdf5` back: summary, plots, TDC columns | this GUI (h5py; Luna is not involved) |
+| Reading the `.hdf5` back: summary, plots, TDC and timewalk columns | this GUI (h5py; Luna is not involved) |
 
 Built with Qt 6 (PySide6).
 
@@ -67,7 +67,7 @@ Timepix4 too. Setting up Timepix4 is in
 |---|---|
 | **Process** | The whole everyday job: pick the detector, add input, press Run, watch the log. |
 | **Advanced** | Luna folder, output placement, renaming, converter flags, command preview, script export. All optional. |
-| **Inspect HDF5** | Look inside a result: datasets, counts, ToA range, TDC edges, the rows themselves, six plots, and the button that writes the TDC columns. See [Inspect HDF5](inspect.md). |
+| **Inspect HDF5** | Look inside a result: datasets, counts, ToA range, TDC edges, the rows themselves, seven plots, and the buttons that write the TDC and timewalk columns. See [Inspect HDF5](inspect.md). |
 
 **Help** in the menu bar above the tabs (or F1) opens a Help window: what every
 tab, option and converter flag does, the name-template placeholders, the
@@ -84,6 +84,8 @@ per queued file (`tpx4dump` on Timepix4), writing the `.hdf5` next to its raw
 file. Any deviation turns the **Advanced flags** button on the Process tab
 yellow, and a click lists it all: relocation, renaming, overwriting, and every
 flag passed. Silently renamed or relocated output is the one surprise worth
-never having.
+never having. The GUI's own post-processing (TDC columns, timewalk correction)
+gets a light-green **Wrapper options** button beside it instead, shown only
+while one of them is on, as it never changes the Luna command.
 
 The theme is in the **View** menu (light or dark), remembered between runs.
