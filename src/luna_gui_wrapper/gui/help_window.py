@@ -39,6 +39,7 @@ SECTIONS = [
     ("file", "What is in the file"),
     ("tdc", "TDC"),
     ("timewalk", "Timewalk correction"),
+    ("dcr", "Dark count rate"),
     ("trouble", "Troubleshooting"),
     ("about", "Settings and about"),
 ]
@@ -476,6 +477,44 @@ add.</p>
 <code>apply-timewalk-correction</code> (Timepix3 only), which averages the
 delay without rejecting background and rewrites <code>toa</code> in
 place.</p>
+
+<a name="dcr"></a><h2>Dark count rate</h2>
+<p>The <b>DCR</b> page beside the summary on the Inspect HDF5 tab. Open a
+file and press <b>Compute DCR</b>: one pass over every pixel hit and cluster
+(about 20 s for a 6 GB file) counts them per pixel and per frame. The time
+base and the noisy cut can be changed afterwards without reading the file
+again.</p>
+<p><b>Time base</b> — what the counts are divided by. All four are computed
+and listed; the one picked is used.</p>
+<ul>
+<li><b>Frames, live time from ToA</b> (default): first to last hit minus the
+gaps between frames. ToA is sorted, so with N frames the N−1 widest ToA gaps
+are the dead time between them; N is the number of entries in
+<code>ExposureTimeBoundaries</code>. Needs no metadata, and matches frames ×
+exposure to 0.01 % on 0.495 s frames.</li>
+<li><b>Frames × exposure</b>: <code>NumberOfFrames</code> ×
+<code>ExposureTime</code> from <code>measurement_metadata.json</code>, found
+in the folders above the file.</li>
+<li><b>ToA span</b>: first to last hit, the gaps between frames counted as
+live (~1 % long for 0.495 s frames every 0.5 s).</li>
+<li><b>Wall clock</b>: <code>StartDateTime</code> to
+<code>StopDateTime</code>, start-up and readout included: an upper bound.</li>
+</ul>
+<p><code>ExposureTimeBoundaries</code> holds row indices, not times, and they
+do not always match <code>PixelHits</code>; only their count is used. A base
+that is unavailable falls back to the next one, and the report says so.</p>
+<p><b>Noisy</b> pixels have more than k × the median hit count of the pixels
+that counted; <b>silent</b> ones counted nothing. The <b>clean</b> rates leave
+the noisy pixels' hits out, and both noisy and silent pixels out of the area;
+clean cluster rates leave out clusters centred on a noisy pixel. Rates per
+area use 55 µm pixels.</p>
+<p>Plots: DCR maps for pixels and clusters, a log-log histogram of the
+per-pixel DCR with the median and noisy cut marked, and <b>Rate vs time</b>:
+the median pixel's DCR in Hz, frame by frame (or in 100 time bins for a
+single frame), for hits and clusters in two panels. Counts per pixel per
+frame are small integers, so the median is interpolated within the middle
+count rather than moving in whole-count steps.
+<b>Export CSV...</b> writes one row per pixel.</p>
 
 <a name="trouble"></a><h2>Troubleshooting</h2>
 {trouble}

@@ -15,6 +15,7 @@ from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QActionGroup, QFontDatabase, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
+    QDoubleSpinBox,
     QDialogButtonBox, QFileDialog, QFrame, QGridLayout, QGroupBox,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QMainWindow,
     QMessageBox, QPlainTextEdit, QProgressBar, QRadioButton, QScrollArea,
@@ -28,6 +29,10 @@ from ..functions.backend import (Backend, detect_backend, drive_letter,
 from ..functions.common import (_NO_WINDOW, APP_NAME, ICON_PATH, IS_WINDOWS,
                                 human_size)
 from ..functions.config import load_config, save_config
+from ..functions.dcr import (DCR_DEFAULT_NOISY_K, DCR_DEFAULT_TIME_SOURCE,
+                             TIME_SOURCES, dcr_maps, dcr_report,
+                             find_measurement_metadata, fmt_rate,
+                             measure_dcr, pick_time, write_dcr_csv)
 from ..functions.detectors import DETECTORS, TPX3, TPX4, detect_from_file
 from ..functions.failures import diagnose, still_fails
 from ..functions.flags import (FLAG_GROUPS, FLAGS, flag_args, flag_bits,
@@ -1967,6 +1972,8 @@ class MainWindow(QMainWindow):
             "timewalk_columns": self.cb_tw.isChecked(),
             "timewalk_ctot_cut": self.sp_tw_cut.value(),
             "timewalk_hits": self.cb_tw_hits.isChecked(),
+            "dcr_time_source": self.c_dcr_time.currentData(),
+            "dcr_noisy_k": self.sp_dcr_k.value(),
             "extra": self.e_extra.text(),
             "theme": self.theme_name,
         })
@@ -2058,10 +2065,80 @@ class MainWindow(QMainWindow):
                    self.write_timewalk_columns),
             None))
 
+        # Bottom panel: the file summary, and the DCR analysis beside it.
+        self.itabs = QTabWidget()
         self.isum = QPlainTextEdit()
         self.isum.setReadOnly(True)
         self.isum.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        lay.addWidget(self.isum, 1)
+        self.itabs.addTab(self.isum, "Summary")
+        self.itabs.addTab(self._build_dcr_page(), "DCR")
+        lay.addWidget(self.itabs, 1)
+
+    def _build_dcr_page(self):
+        """The DCR page: controls, the report, plots and export."""
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 6, 0, 0)
+        lay.setSpacing(6)
+
+        self.c_dcr_time = QComboBox()
+        for key, label in TIME_SOURCES.items():
+            self.c_dcr_time.addItem(label, key)
+        i = self.c_dcr_time.findData(
+            self.cfg.get("dcr_time_source", DCR_DEFAULT_TIME_SOURCE))
+        self.c_dcr_time.setCurrentIndex(max(i, 0))
+        self.c_dcr_time.setToolTip(
+            "What the counts are divided by.\n"
+            "Frames, live time from ToA: first-to-last hit minus the gaps "
+            "between frames, found in the hits themselves.\n"
+            "Frames x exposure: NumberOfFrames x ExposureTime from "
+            "measurement_metadata.json.\n"
+            "ToA span: first to last hit, gaps between frames included.\n"
+            "Wall clock: StartDateTime to StopDateTime, overhead included.")
+        self.c_dcr_time.currentIndexChanged.connect(self._render_dcr)
+
+        self.sp_dcr_k = QDoubleSpinBox()
+        self.sp_dcr_k.setRange(1.5, 10000)
+        self.sp_dcr_k.setDecimals(1)
+        self.sp_dcr_k.setSingleStep(1)
+        self.sp_dcr_k.setPrefix("> ")
+        self.sp_dcr_k.setSuffix(" x median")
+        self.sp_dcr_k.setValue(float(self.cfg.get("dcr_noisy_k",
+                                                  DCR_DEFAULT_NOISY_K)))
+        self.sp_dcr_k.setToolTip(
+            "A pixel is noisy when its hit count is above this many times the "
+            "median of the pixels that counted. Noisy pixels are left out of "
+            "the 'clean' rates.")
+        self.sp_dcr_k.valueChanged.connect(self._render_dcr)
+
+        self.b_dcr = button("Compute DCR", self.compute_dcr, accent=True,
+                            tip="Read every pixel hit and cluster of the open "
+                                "file once; changing the time base or the "
+                                "noisy cut afterwards needs no new read.")
+        lay.addWidget(row(QLabel("Time base:"), self.c_dcr_time,
+                          QLabel("Noisy pixel:"), self.sp_dcr_k,
+                          self.b_dcr, None))
+
+        self.dcr_text = QPlainTextEdit()
+        self.dcr_text.setReadOnly(True)
+        self.dcr_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.dcr_text.setPlaceholderText(
+            "Open a file, then Compute DCR: rates per pixel and per cluster, "
+            "noisy and silent pixels, and the rate frame by frame.")
+        lay.addWidget(self.dcr_text, 1)
+
+        lay.addWidget(row(
+            button("DCR map, pixels", lambda: self.plot("dcr_map")),
+            button("DCR map, clusters", lambda: self.plot("dcr_cmap")),
+            button("Per-pixel DCR histogram", lambda: self.plot("dcr_hist")),
+            button("Rate vs time", lambda: self.plot("dcr_time")),
+            None,
+            button("Export CSV...", self.export_dcr_csv,
+                   tip="One row per pixel: hits, clusters, their rates, and "
+                       "the noisy / silent flags.")))
+        self.dcr_counts = None          # measure_dcr() result
+        self.dcr_path = None            # the file it describes
+        return page
 
     def pick_h5(self):
         p, _ = QFileDialog.getOpenFileName(
@@ -2093,6 +2170,9 @@ class MainWindow(QMainWindow):
         self.itable.setRowCount(0)
         self.isum.clear()
         self.h5_listed = path          # what the Datasets table describes
+        if self.dcr_path != path:
+            self.dcr_counts = self.dcr_path = None
+            self.dcr_text.clear()
         if not path.is_file():
             self.isum.setPlainText("No such file: " + str(path))
             return
@@ -2393,6 +2473,184 @@ class MainWindow(QMainWindow):
             QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
+    # -- DCR --------------------------------------------------------------
+
+    def compute_dcr(self):
+        """One pass over the open file; the DCR page then renders from it."""
+        h5py, np = require_h5py(self)
+        if h5py is None:
+            return
+        path = Path(self.e_h5.text())
+        if not path.is_file():
+            QMessageBox.information(self, APP_NAME, "Open an HDF5 file first.")
+            return
+        self.itabs.setCurrentIndex(1)
+        self.b_dcr.setEnabled(False)
+        self._busy(True)
+        shown = [0.0]
+
+        def progress(frac, text):
+            # A 6 GB file takes ~20 s: say how far along, a few times a second.
+            now = time.monotonic()
+            if now - shown[0] > 0.25:
+                shown[0] = now
+                self.dcr_text.setPlainText(
+                    f"Reading {path.name}\n{text}   ({100 * frac:.0f} %)")
+                QApplication.processEvents()
+            return False
+
+        try:
+            with h5py.File(path, "r") as f:
+                det, _judged = self._file_detector(f)
+                counts = measure_dcr(f, det, find_measurement_metadata(path),
+                                     progress)
+        except Exception:
+            self.dcr_text.setPlainText(traceback.format_exc())
+            return
+        finally:
+            self._busy(False)
+            self.b_dcr.setEnabled(True)
+        self.dcr_counts, self.dcr_path = counts, path
+        self._render_dcr()
+
+    def _render_dcr(self, *_a):
+        """Redraw the DCR report from the cached counts: no file read."""
+        if self.dcr_counts is None:
+            return
+        lines, _maps = dcr_report(self.dcr_counts,
+                                  self.c_dcr_time.currentData(),
+                                  self.sp_dcr_k.value())
+        self.dcr_text.setPlainText("\n".join([str(self.dcr_path), ""] + lines))
+
+    def export_dcr_csv(self):
+        if self.dcr_counts is None:
+            QMessageBox.information(self, APP_NAME, "Compute DCR first.")
+            return
+        default = self.dcr_path.with_name(self.dcr_path.stem + "_dcr.csv")
+        p, _ = QFileDialog.getSaveFileName(
+            self, "Export DCR per pixel", str(default),
+            "CSV (*.csv);;All files (*)", "", self.DLG)
+        if not p:
+            return
+        try:
+            write_dcr_csv(p, self.dcr_counts, self.c_dcr_time.currentData(),
+                          self.sp_dcr_k.value(), h5_path=str(self.dcr_path))
+        except Exception as exc:
+            QMessageBox.critical(self, APP_NAME, f"Could not write the CSV:\n{exc}")
+            return
+        self.dcr_text.appendPlainText(f"\nwrote {p}")
+
+    def _draw_dcr(self, what, path, fig, ax, styled, np):
+        """The DCR plots, drawn from the cached counts of this file."""
+        c = self.dcr_counts
+        if c is None or self.dcr_path != path:
+            QMessageBox.information(self, APP_NAME,
+                                    "Compute DCR for this file first (DCR tab).")
+            return False
+        T, used, _note = pick_time(c, self.c_dcr_time.currentData())
+        if T is None:
+            QMessageBox.information(self, APP_NAME,
+                                    "No measurement time is available.")
+            return False
+        k = self.sp_dcr_k.value()
+        m = dcr_maps(c, T, k, np)
+        if what in ("dcr_map", "dcr_hist") and not c["n_hits"]:
+            QMessageBox.information(self, APP_NAME, "This file has no pixel hits.")
+            return False
+
+        if what == "dcr_map":
+            self._draw_hitmap(fig, ax, m["hit_rate"], styled, np, "Hz / pixel",
+                              f"DCR, pixels -- {fmt_rate(c['n_hits'] / T)} "
+                              f"over {T:.4g} s")
+        elif what == "dcr_cmap":
+            if not c["n_clusters"]:
+                QMessageBox.information(self, APP_NAME, "This file has no clusters.")
+                return False
+            self._draw_hitmap(fig, ax, m["cluster_rate"], styled, np,
+                              "clusters / s per pixel",
+                              f"DCR, clusters -- {fmt_rate(c['n_clusters'] / T)} "
+                              f"over {T:.4g} s")
+        elif what == "dcr_hist":
+            r = m["hit_rate"][~m["silent"]]
+            lo, hi = float(r.min()), float(r.max())
+            # Log bins: a noisy pixel can sit decades above the bulk.
+            bins = (np.logspace(np.log10(lo), np.log10(hi * 1.0001), 120)
+                    if hi > lo else 20)
+            ax.hist(r, bins=bins, histtype="step", **self._series_colour(styled))
+            med = m["median_hits"] / T
+            ax.axvline(med, ls="--", lw=1, color="0.5",
+                       label=f"median {fmt_rate(med)}")
+            ax.axvline(m["noisy_cut_hits"] / T, ls=":", lw=1, color="0.5",
+                       label=f"noisy cut, {k:g} x median")
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.legend()
+            ax.set(title=f"Per-pixel DCR -- {r.size:,} pixels that counted, "
+                         f"{int(m['silent'].sum()):,} silent not shown",
+                   xlabel=f"DCR (Hz)   [{TIME_SOURCES[used]}]",
+                   ylabel="Pixels (-)")
+        else:                                           # dcr_time
+            # Each frame over its own live time, so neither the gaps between
+            # frames nor the time base chosen above bend the curve.
+            # y: the median pixel's DCR in each frame (or time bin), over the
+            # pixels that counted in the whole run. Falls back to the mean
+            # pixel when the per-frame maps could not be kept.
+            live = c["frame_live_s"]
+            if live is not None and len(live) > 1:
+                x = c["frame_start_s"] + live / 2
+                dt = live
+                totals = (c["frame_hits"], c["frame_clusters"])
+                how = f"one point per frame ({len(live)})"
+            elif c["bin_edges_s"] is not None:
+                e = c["bin_edges_s"]
+                dt = np.diff(e)
+                x = (e[:-1] + e[1:]) / 2
+                totals = (c["bin_hits"], c["bin_clusters"])
+                how = f"{dt[0]:.3g} s bins"
+            else:
+                QMessageBox.information(self, APP_NAME,
+                                        "Too few hits to follow over time.")
+                return False
+            # Medians exist per frame or per bin; use them only if they match
+            # the slots chosen above.
+            meds = (c["med_hits"], c["med_clusters"])
+            if c["med_by_frame"] != (live is not None and len(live) > 1):
+                meds = (None, None)
+            counted = int((c["hit_map"] > 0).sum() if c["n_hits"]
+                          else (c["cluster_map"] > 0).sum())
+            panels = []
+            for label, med, tot in (("Pixel hits", meds[0], totals[0]),
+                                    ("Clusters", meds[1], totals[1])):
+                if tot is None or not np.any(tot):
+                    continue
+                if med is not None:
+                    panels.append((label, "median", med / dt))
+                else:
+                    panels.append((label, "mean", tot / max(counted, 1) / dt))
+            if not panels:
+                QMessageBox.information(self, APP_NAME,
+                                        "Nothing to follow over time.")
+                return False
+            ax.remove()
+            axes = fig.subplots(len(panels), 1, sharex=True, squeeze=False)[:, 0]
+            for a, (label, stat, r) in zip(axes, panels):
+                if not styled:
+                    self._theme_axes(a)
+                a.plot(x, r, marker=".", lw=1, **self._series_colour(styled))
+                a.set_ylabel(f"{label}, {stat}\npixel DCR (Hz)")
+                a.set_title(f"{label}: {stat} pixel {fmt_rate(float(np.median(r)))}"
+                            f" (median over time)", fontsize="medium")
+            note = ""
+            if any(stat == "mean" for _l, stat, _r in panels):
+                note = ("\nmedian unavailable (" + (c.get("med_why") or
+                        "frames differ") + "): mean per pixel shown")
+            sup = fig.suptitle(f"DCR vs time -- {how}, {counted:,} pixels "
+                               f"that counted{note}")
+            if not styled:
+                sup.set_color(self.pal["text"])
+            axes[-1].set_xlabel("Time (s)")
+        return True
+
     # -- plots ------------------------------------------------------------
 
     def plot(self, what):
@@ -2424,13 +2682,7 @@ class MainWindow(QMainWindow):
                 # No komorebi_mpl: paint the figure from the app palette so a
                 # dark theme still gets a dark plot.
                 fig.patch.set_facecolor(self.pal["surface_container_low"])
-                ax.set_facecolor(self.pal["surface"])
-                for side in ax.spines.values():
-                    side.set_color(self.pal["outline_variant"])
-                ax.tick_params(colors=self.pal["text_muted"])
-                ax.xaxis.label.set_color(self.pal["text"])
-                ax.yaxis.label.set_color(self.pal["text"])
-                ax.title.set_color(self.pal["text"])
+                self._theme_axes(ax)
             ok = self._draw_plot(what, path, fig, ax, styled, CAP, h5py, np)
             if ok:
                 fig.tight_layout()
@@ -2454,6 +2706,8 @@ class MainWindow(QMainWindow):
         Runs inside the style context so every artist -- including the
         colorbar, which is its own axes -- picks up the style rcParams.
         """
+        if what.startswith("dcr_"):
+            return self._draw_dcr(what, path, fig, ax, styled, np)
         try:
             with h5py.File(path, "r") as f:
                 if what == "tdc":
@@ -2616,6 +2870,16 @@ class MainWindow(QMainWindow):
                xlabel="Hit ToT (ns)", ylabel="Time (ns)")
         ax.legend()
         return True
+
+    def _theme_axes(self, ax):
+        """App-palette colours for one axes, when no plot style is loaded."""
+        ax.set_facecolor(self.pal["surface"])
+        for side in ax.spines.values():
+            side.set_color(self.pal["outline_variant"])
+        ax.tick_params(colors=self.pal["text_muted"])
+        ax.xaxis.label.set_color(self.pal["text"])
+        ax.yaxis.label.set_color(self.pal["text"])
+        ax.title.set_color(self.pal["text"])
 
     def _series_colour(self, styled):
         """Let the style pick the series colour; override only without one."""

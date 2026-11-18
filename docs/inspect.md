@@ -45,6 +45,12 @@ The cluster size histogram is capped at 40 pixels because that is where the
 distribution lives; anything above is counted and stated in the plot title
 rather than dropped without saying so.
 
+## Summary and DCR
+
+The panel under the plot buttons has two pages. **Summary** is filled as
+soon as a file opens. **DCR** computes the dark count rate per pixel and per
+cluster on request; see [Dark count rate](dcr.md).
+
 ## Looking at the rows themselves
 
 Double-click a dataset in the **Datasets** table (or select it and press

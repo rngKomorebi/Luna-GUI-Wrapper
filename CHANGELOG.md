@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 18-11-2026
+
+### Added
+
+- Dark count rate on the Inspect HDF5 tab. The panel under the plot buttons
+  is now two pages, **Summary** and **DCR**. **Compute DCR** reads every pixel
+  hit and cluster once and reports the rate per pixel, per cluster and per
+  area, silent and noisy pixels (more than k x the median, k = 10 by
+  default), and "clean" rates without them, and the rate frame by frame.
+  Changing the time base or k redraws without reading the file again.
+- Four time bases, all listed: live time from the ToA gaps between frames
+  (default, no metadata needed), frames x exposure and wall clock from
+  `measurement_metadata.json`, and the first-to-last ToA span.
+- DCR plots: maps for pixels and clusters, a per-pixel DCR histogram, and the
+  rate vs time, showing the median pixel's DCR in Hz frame by frame for hits
+  and clusters. The median is interpolated within the middle count, so it
+  does not step in whole counts. **Export CSV...** writes one row per pixel.
+- Qt-free `functions/dcr.py`, a Help section, and docs/dcr.md.
+
 ## [0.4.0] - 18-11-2026
 
 ### Added
