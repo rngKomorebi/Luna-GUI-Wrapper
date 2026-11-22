@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 22-11-2026
+
+### Added
+
+- **Luna comment** box under the name template on the Advanced tab: text typed
+  there (e.g. `--eps-t 300 ns`) is appended to every output name as
+  `_{luna_comment}`, so the default becomes
+  `{date}_{time}_{comment}_{stem}_{luna_comment}`. A line under the box shows
+  the resulting template; empty adds nothing. It counts towards the Advanced
+  flags summary and is not saved between sessions.
+
+### Changed
+
+- The Advanced tab's boxes are told apart by colour: the Luna flags box has a
+  faint yellow wash and a yellow stripe on its left, like the Process tab's
+  **Advanced flags** button, and the Wrapper options box the same in the
+  **Wrapper options** button's green. Every theme gets both, worked out from
+  its own warning and OK colours.
+- `--eps-s` and `--eps-t` default to **2.5** and **300ns** in this GUI
+  (Luna's own are 1 and 100ns). The empty field shows the value in grey, and
+  a run passes it unless another value is typed in. Tooltips and the flag
+  guide name both defaults.
+- README, Install: besides `git clone`, the GUI can be had by downloading the
+  latest release's source archive and unpacking it; the install steps that
+  follow are the same.
+
+### Fixed
+
+- README told Linux users to run `./install-linux.sh`, which fails with
+  *Permission denied* in a fresh clone or an unpacked release, because the
+  script is not stored as executable. It now says `bash install-linux.sh`.
+- The per-file **Overwrite** boxes in the queue are drawn like the header's
+  box, visible ticked and unticked, and a click anywhere in the cell toggles
+  one. Quick repeated clicks, on a row or the header, no longer cancel each
+  other out, which had made the box look stuck.
+
 ## [0.6.0] - 18-11-2026
 
 ### Added

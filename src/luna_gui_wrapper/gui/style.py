@@ -41,6 +41,9 @@ PALETTES = {
         selection="#cfe4ff", grid="#e5e7eb",
         flag_bg="#fde047", flag_border="#eab308", flag_fg="#422006",
         wrap_bg="#bbf7d0", wrap_border="#4ade80", wrap_fg="#14532d",
+        # The Advanced tab's flags and wrapper boxes: a faint wash of the
+        # two buttons' colours over the group-box background.
+        flag_tint="#faf6e2", wrap_tint="#f0faf5",
         heading="#0b5cad",
         # The menu bar, and the views: the log, tables, lists, help pages.
         panel="#ffffff", view="#f9fafb",
@@ -61,6 +64,7 @@ PALETTES = {
         selection="#0a3a66", grid="#2a2a2c",
         flag_bg="#ffd60a", flag_border="#e6c000", flag_fg="#1c1c1e",
         wrap_bg="#86efac", wrap_border="#4ade80", wrap_fg="#052e16",
+        flag_tint="#2d2a1b", wrap_tint="#242c28",
         heading="#5ac8fa",
         panel="#131315", view="#1b1b1d",
     ),
@@ -298,6 +302,18 @@ def build_qss(pal: dict, sans: str, mono: str, size: int = BASE_FONT_SIZE) -> st
         padding: 0 6px;
         color: {pal['text_muted']};
         font-weight: 600;
+    }}
+    /* The Advanced tab's boxes, tinted by what they do: Luna flags in the
+       Advanced-flags button's yellow, the GUI's own post-processing in the
+       Wrapper-options button's green. The stripe on the left carries most
+       of it, so the wash can stay faint enough not to drown the grey notes. */
+    QGroupBox[tone="flag"] {{
+        background: {pal['flag_tint']};
+        border-left: 4px solid {pal['flag_border']};
+    }}
+    QGroupBox[tone="wrap"] {{
+        background: {pal['wrap_tint']};
+        border-left: 4px solid {pal['wrap_border']};
     }}
 
     /* ---- tables -------------------------------------------------------- */

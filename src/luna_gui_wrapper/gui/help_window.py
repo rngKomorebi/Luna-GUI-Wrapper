@@ -163,8 +163,12 @@ def _flags_html(pal):
                 what += ('<br><span class="faint">Values: '
                          + ", ".join(f"<code>{escape(c)}</code>" for c in f.choices)
                          + "</span>")
-            rows.append([f"<code>{escape(f.flag)}</code>",
-                         f"<code>{escape(f.default)}</code>" if f.default else "",
+            if f.gui_default:
+                dflt = (f"<code>{escape(f.gui_default)}</code><br>"
+                        f'<span class="faint">Luna: {escape(f.default)}</span>')
+            else:
+                dflt = f"<code>{escape(f.default)}</code>" if f.default else ""
+            rows.append([f"<code>{escape(f.flag)}</code>", dflt,
                          _FOR.get(f.detectors, ""), what])
         parts.append(f"<h3>{escape(title)}</h3>"
                      + _table(rows, ["Flag", "Default", "For", "What it does"], pal,
@@ -316,6 +320,10 @@ its raw file.</li>
 rebuilt under the output folder, without the <code>raw</code> level.</li>
 <li><b>Name template</b>: how outputs are named; see
 <a href="#naming">Name templates</a>. <b>Presets...</b> offers common ones.</li>
+<li><b>Luna comment</b>: an optional note for this run, e.g. what was changed
+in Luna (<code>--eps-t 300 ns</code>). Anything typed here is appended to the
+end of every output name, and the line below the box shows the template it
+turns into. Left empty, nothing is added. It is not saved between sessions.</li>
 <li><b>Skip files whose output already exists</b> (on by default) — untick to
 overwrite everything, or tick <b>Overwrite</b> on single rows instead.</li>
 </ul>
@@ -357,6 +365,13 @@ measurement folder.</p>
 inputs would get the same name, both rows are marked <b>CLASH</b> and skipped
 rather than one overwriting the other — keep <code>{{time}}</code> or
 <code>{{stem}}</code> in the template to avoid it.</p>
+<p>A <b>Luna comment</b> typed on the Advanced tab is added as
+<code>_{{luna_comment}}</code> on the end: with <code>--eps-t 300 ns</code> the
+default becomes <code>{{date}}_{{time}}_{{comment}}_{{stem}}_{{luna_comment}}</code>,
+giving <code>2026-08-07_12-52-45_DCR-0V-gain_fCqk_000000_eps-t-300-ns.hdf5</code>.
+Characters a file name cannot hold become <code>-</code>, and leading dashes
+are dropped. A template that already contains <code>{{luna_comment}}</code>
+puts it there instead of on the end.</p>
 
 <a name="flags"></a><h2>Luna flags</h2>
 <p>Taken from <code>tpx3dump process --help</code> and <code>tpx4dump process

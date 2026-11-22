@@ -2,8 +2,9 @@
 
 import json
 
-from luna_gui_wrapper.functions.naming import (DEFAULT_TEMPLATE, measurement_context,
-                                            migrate_template, render_name, sanitize)
+from luna_gui_wrapper.functions.naming import (DEFAULT_TEMPLATE, effective_template,
+                                            measurement_context, migrate_template,
+                                            render_name, sanitize)
 
 
 def test_sanitize():
@@ -23,6 +24,25 @@ def test_render_unknown_placeholder_and_bad_template():
     assert render_name("{nope}_{stem}", ctx) == "s"
     assert render_name("{unclosed", ctx) == "s"       # format error -> stem
     assert render_name("", ctx) == "s"
+
+
+def test_luna_comment_appended_to_template():
+    lc = sanitize("--eps-t 300 ns")
+    assert lc == "eps-t-300-ns"
+    tmpl = effective_template(DEFAULT_TEMPLATE, lc)
+    assert tmpl == "{date}_{time}_{comment}_{stem}_{luna_comment}"
+    ctx = {"stem": "fCqk_000000", "date": "2026-08-07", "time": "12-52-45",
+           "comment": "DCR-0V-gain", "luna_comment": lc}
+    assert render_name(tmpl, ctx) == \
+        "2026-08-07_12-52-45_DCR-0V-gain_fCqk_000000_eps-t-300-ns"
+
+
+def test_luna_comment_empty_or_already_placed():
+    assert effective_template(DEFAULT_TEMPLATE, "") == DEFAULT_TEMPLATE
+    assert effective_template(DEFAULT_TEMPLATE, " -- ") == DEFAULT_TEMPLATE
+    placed = "{luna_comment}_{stem}"
+    assert effective_template(placed, "x") == placed       # never twice
+    assert render_name(placed, {"stem": "s", "luna_comment": ""}) == "s"
 
 
 def test_measurement_context_asi_layout(tmp_path):

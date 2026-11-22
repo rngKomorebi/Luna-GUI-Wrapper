@@ -568,6 +568,11 @@ def preset_group(key):
 # made from, rule)}. The sources are also what decides, on a Luna theme, which
 # written-out colours a user's change replaces.
 
+def _tint_amount(theme):
+    """How far a box's tint moves from the box colour towards its hue."""
+    return 0.08 if theme.base == "dark" else 0.14
+
+
 _PALETTE_RULES = {
     "surface": (("window",), lambda t: t.window),
     "surface_container_low": (("surface",), lambda t: t.surface),
@@ -604,6 +609,12 @@ _PALETTE_RULES = {
     "wrap_bg": (("ok",), lambda t: t.ok),
     "wrap_border": (("ok",), lambda t: _mix(t.ok, "#000000", 0.2)),
     "wrap_fg": (("ok",), lambda t: readable_on(t.ok)),
+    # Their faint washes, behind the Advanced tab's flags and wrapper boxes.
+    # A dark window shows a tint at about half the strength a light one needs.
+    "flag_tint": (("surface", "warn"),
+                  lambda t: _mix(t.surface, t.warn, _tint_amount(t))),
+    "wrap_tint": (("surface", "ok"),
+                  lambda t: _mix(t.surface, t.ok, _tint_amount(t))),
     "heading": (("accent",), lambda t: t.accent),
     "panel": (("panel",), lambda t: t.panel),
     "view": (("panel",), lambda t: t.panel),

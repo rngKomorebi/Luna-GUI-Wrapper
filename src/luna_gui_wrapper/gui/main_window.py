@@ -37,9 +37,10 @@ from ..functions.detectors import DETECTORS, TPX3, TPX4, detect_from_file
 from ..functions.failures import diagnose, still_fails
 from ..functions.flags import (FLAG_GROUPS, FLAGS, flag_args, flag_bits,
                                flag_problems)
-from ..functions.naming import (DEFAULT_TEMPLATE, PRESET_TEMPLATES,
-                                TEMPLATE_HELP, Job, measurement_context,
-                                migrate_template, render_name)
+from ..functions.naming import (DEFAULT_TEMPLATE, LUNA_COMMENT,
+                                PRESET_TEMPLATES, TEMPLATE_HELP, Job,
+                                effective_template, measurement_context,
+                                migrate_template, render_name, sanitize)
 from ..functions.plotting import (CSIZE_BINS, CSIZE_MAX, HITMAP_CLIP_FACTOR,
                                   HITMAP_CLIP_PERCENTILE, PLOT_FIGSIZE,
                                   PLOT_TITLES, STOT_TARGET_BINS, TOT_MAX_BINS,
@@ -58,8 +59,8 @@ from .help_window import SECTIONS, HelpWindow
 from .models import FolderModel, JobModel
 from .preferences import PreferencesDialog
 from .theme import preset_group, preset_names, theme_manager
-from .widgets import (CheckHeader, PathEdit, PathsEdit, button, row, table,
-                      vline)
+from .widgets import (CheckDelegate, CheckHeader, PathEdit, PathsEdit, button,
+                      row, table, vline)
 
 # ---------------------------------------------------------------------------
 # optional scientific stack (Inspect tab only)
@@ -288,6 +289,7 @@ class MainWindow(QMainWindow):
         # including the hand-drawn checkbox in the queue header.
         if getattr(self, "jhead", None):
             self.jhead.set_palette(self.pal)
+            self.jcheck.set_palette(self.pal)
         if getattr(self, "help", None):
             self.help.set_palette(self.pal, m.ui_font_size)
         self.job_model.reset()
@@ -408,6 +410,9 @@ class MainWindow(QMainWindow):
             self.jtable.setColumnWidth(i, w)
         self.jhead.setSectionsClickable(True)   # setHorizontalHeader can reset it
         self.jhead.box_clicked.connect(self.toggle_all_overwrite)
+        # The per-row boxes in the same hand-drawn look as the header's.
+        self.jcheck = CheckDelegate(self.pal, self.jtable)
+        self.jtable.setItemDelegateForColumn(JobModel.OVER, self.jcheck)
         self.jtable.doubleClicked.connect(self._job_double_clicked)
         rlay.addWidget(self.jtable, 1)
 
@@ -529,13 +534,32 @@ class MainWindow(QMainWindow):
         ph.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         go.addWidget(ph, 3, 1, 1, 2)
 
+        # A note for this run only (what was changed in Luna, e.g. "--eps-t
+        # 300 ns"), appended to the name. Deliberately not saved with the
+        # settings: a stale comment would mislabel the next session's files.
+        go.addWidget(QLabel("Luna comment:"), 4, 0)
+        self.e_luna_comment = QLineEdit()
+        self.e_luna_comment.setPlaceholderText(
+            "optional -- appended to the end of the name, e.g. --eps-t 300 ns")
+        self.e_luna_comment.setClearButtonEnabled(True)
+        self.e_luna_comment.textChanged.connect(lambda _t: self.recompute_outputs())
+        go.addWidget(self.e_luna_comment, 4, 1, 1, 2)
+        self.lbl_final_tmpl = QLabel("")
+        self.lbl_final_tmpl.setTextFormat(Qt.TextFormat.PlainText)
+        self.lbl_final_tmpl.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        go.addWidget(self.lbl_final_tmpl, 5, 1, 1, 2)
+        for w in (self.e_template, self.e_luna_comment):
+            w.textChanged.connect(self.update_final_template)
+        self.update_final_template()
+
         self.cb_skip = QCheckBox("Skip files whose output already exists")
         self.cb_skip.setChecked(bool(self.cfg.get("skip_existing", True)))
         skip_hint = QLabel("untick to overwrite them all -- or tick "
                            "'Overwrite' on single rows of the queue")
         skip_hint.setProperty("faint", True)
         go.addWidget(row(self.cb_skip, skip_hint, None, spacing=10),
-                     4, 0, 1, 3)
+                     6, 0, 1, 3)
         lay.addWidget(g_out)
 
         # Flags -------------------------------------------------------------
@@ -545,6 +569,7 @@ class MainWindow(QMainWindow):
         # Every flag is built; apply_detector() shows the ones the current
         # converter accepts and titles the group after it.
         g_opt = self.g_opt = QGroupBox("")
+        g_opt.setProperty("tone", "flag")      # yellow, like Advanced flags
         gf = QGridLayout(g_opt)
         gf.setHorizontalSpacing(10)
         gf.setVerticalSpacing(6)
@@ -570,7 +595,10 @@ class MainWindow(QMainWindow):
                 note.setProperty("faint", True)
                 ctl = self._flag_control(f)
                 tip = f.note + (".\n\n" + f.tip if f.tip else ".")
-                if f.default:
+                if f.gui_default:
+                    tip += (f"\n\nDefault: {f.gui_default} (this GUI's; "
+                            f"Luna's own is {f.default})")
+                elif f.default:
                     tip += "\n\nDefault: " + f.default
                 tip += "\nFor: " + " and ".join(DETECTORS[k].name for k in f.detectors)
                 for w in (label, ctl, note):
@@ -606,6 +634,7 @@ class MainWindow(QMainWindow):
         # they are never mistaken for flags passed to tpx3dump / tpx4dump.
         g_post = self.g_post = QGroupBox(
             "Wrapper options  (run by this GUI after Luna, not Luna flags)")
+        g_post.setProperty("tone", "wrap")     # green, like its button
         gpv = QVBoxLayout(g_post)
         gpv.setSpacing(6)
         # Its own widget, so Timepix4 can hide the TDC row and keep the rest.
@@ -709,8 +738,14 @@ class MainWindow(QMainWindow):
             cb.toggled.connect(c.setEnabled)
             self.flag_w[f.key + "_on"] = cb
             return row(cb, c, None, spacing=4)
+        # A saved value that is just the GUI default shows as the grey
+        # placeholder, so the field reads as "default" -- it passes the same.
+        if f.gui_default and str(saved).replace(" ", "") == f.gui_default:
+            saved = ""
         e = PathEdit(str(saved)) if f.kind == "path" else QLineEdit(str(saved))
-        e.setPlaceholderText(f.default or "")
+        # Grey text for what an empty field passes: the GUI's default if it
+        # has one, otherwise Luna's (and then nothing is passed).
+        e.setPlaceholderText(f.shown_default or "")
         self.flag_w[f.key] = e
         if f.kind == "path":
             return row(e, button("Browse...", lambda: self._pick_flag_file(e)))
@@ -762,7 +797,7 @@ class MainWindow(QMainWindow):
         return not problems
 
     def _connect_option_signals(self):
-        for w in (self.e_template, self.e_extra):
+        for w in (self.e_template, self.e_luna_comment, self.e_extra):
             w.textChanged.connect(self.update_adv_summary)
         for w in self.flag_w.values():
             if isinstance(w, QCheckBox):
@@ -897,6 +932,9 @@ class MainWindow(QMainWindow):
         tmpl = self.e_template.text().strip()
         if tmpl and tmpl != DEFAULT_TEMPLATE:
             bits.append("renaming to " + tmpl)
+        lc = sanitize(self.e_luna_comment.text())
+        if lc:
+            bits.append("Luna comment appended to the name: _" + lc)
         if not self.cb_skip.isChecked():
             bits.append("OVERWRITING existing output")
         bits += [" ".join(b) for b in flag_bits(self.flag_values(),
@@ -995,6 +1033,7 @@ class MainWindow(QMainWindow):
         self.rb_beside.setChecked(True)
         self.e_outdir.clear()
         self.e_template.setText(DEFAULT_TEMPLATE)
+        self.e_luna_comment.clear()
         self.cb_skip.setChecked(True)
         self.e_extra.clear()
         for w in self.flag_w.values():
@@ -1304,16 +1343,40 @@ class MainWindow(QMainWindow):
         except Exception:
             return self.jobs[0].src.parent
 
+    def final_template(self):
+        """(template in effect, sanitised Luna comment): the name template
+        with {luna_comment} on the end whenever a Luna comment is typed."""
+        template = self.e_template.text().strip() or DEFAULT_TEMPLATE
+        luna_comment = sanitize(self.e_luna_comment.text())
+        return effective_template(template, luna_comment), luna_comment
+
+    def update_final_template(self, *_a):
+        """Say under the Luna comment box what the name template becomes."""
+        template, lc = self.final_template()
+        lbl = self.lbl_final_tmpl
+        if lc:
+            lbl.setText(f"template becomes:  {template}    "
+                        f"with {LUNA_COMMENT} = {lc}")
+            lbl.setProperty("role", "warn")
+            lbl.setProperty("faint", False)
+        else:
+            lbl.setText("empty: nothing is appended, the template is used as is")
+            lbl.setProperty("role", "")
+            lbl.setProperty("faint", True)
+        lbl.style().unpolish(lbl)
+        lbl.style().polish(lbl)
+
     def recompute_outputs(self):
         mode = self.out_mode()
         self.e_outdir.setEnabled(mode != "beside")
         self.b_outdir.setEnabled(mode != "beside")
-        template = self.e_template.text().strip() or DEFAULT_TEMPLATE
+        template, luna_comment = self.final_template()
         outdir = Path(self.e_outdir.text()) if self.e_outdir.text().strip() else None
         root = self.common_root() if mode == "mirror" else None
 
         for job in self.jobs:
-            name = render_name(template, job.ctx) + ".hdf5"
+            ctx = {**job.ctx, "luna_comment": luna_comment}
+            name = render_name(template, ctx) + ".hdf5"
             if mode == "beside" or outdir is None:
                 job.dst = job.src.with_name(name)
             elif mode == "flat":
