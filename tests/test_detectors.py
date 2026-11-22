@@ -55,3 +55,18 @@ def test_tot_bins_tpx4_capped():
     assert len(edges) - 1 <= 2000
     assert abs(step / TPX4.tot_lsb_ns - round(step / TPX4.tot_lsb_ns)) < 1e-9
     assert edges[-1] >= hi
+
+
+def test_next_dt_sorts_before_differencing():
+    from luna_gui_wrapper.functions.plotting import next_dt_ticks
+    dt = next_dt_ticks(np.array([30, 10, 20, 60], dtype="uint64"), np)
+    assert dt.tolist() == [10, 10, 30]
+
+
+def test_next_dt_range_keeps_eps_t_inside():
+    from luna_gui_wrapper.functions.plotting import (NEXT_DT_EPS_SPAN,
+                                                     NEXT_DT_MAX_NS,
+                                                     next_dt_range_ns)
+    assert next_dt_range_ns(None) == NEXT_DT_MAX_NS
+    assert next_dt_range_ns(100.0) == NEXT_DT_MAX_NS
+    assert next_dt_range_ns(2000.0) == NEXT_DT_EPS_SPAN * 2000.0

@@ -28,7 +28,7 @@ from ..functions.backend import (Backend, detect_backend, drive_letter,
                                  win_to_wsl, wsl_missing_paths,
                                  wsl_mount_drive, wsl_unmounted_drives)
 from ..functions.common import (_NO_WINDOW, APP_NAME, ICON_PATH, IS_WINDOWS,
-                                human_size)
+                                dataset_row, human_size)
 from ..functions.config import load_config, save_config
 from ..functions.dcr import (DCR_DEFAULT_NOISY_K, DCR_DEFAULT_TIME_SOURCE,
                              TIME_SOURCES, dcr_maps, dcr_report,
@@ -36,15 +36,16 @@ from ..functions.dcr import (DCR_DEFAULT_NOISY_K, DCR_DEFAULT_TIME_SOURCE,
                              measure_dcr, pick_time, write_dcr_csv)
 from ..functions.detectors import DETECTORS, TPX3, TPX4, detect_from_file
 from ..functions.failures import diagnose, still_fails
-from ..functions.flags import (FLAG_GROUPS, FLAGS, POSINT, flag_args,
-                               flag_bits, flag_problems)
+from ..functions.flags import (FLAG_GROUPS, FLAGS, POSINT, duration_ns,
+                               flag_args, flag_bits, flag_problems)
 from ..functions.naming import (DEFAULT_TEMPLATE, LUNA_COMMENT,
                                 PRESET_TEMPLATES, TEMPLATE_HELP, Job,
                                 effective_template, measurement_context,
                                 migrate_template, render_name, sanitize)
 from ..functions.plotting import (CSIZE_BINS, CSIZE_MAX, HITMAP_CLIP_FACTOR,
-                                  HITMAP_CLIP_PERCENTILE, PLOT_FIGSIZE,
-                                  PLOT_TITLES, STOT_TARGET_BINS, TOT_MAX_BINS,
+                                  HITMAP_CLIP_PERCENTILE, NEXT_DT_TARGET_BINS,
+                                  PLOT_FIGSIZE, PLOT_TITLES, STOT_TARGET_BINS,
+                                  TOT_MAX_BINS, next_dt_range_ns, next_dt_ticks,
                                   plot_style_context, tot_bin_edges)
 from ..functions.tdc import (TDC_DATASET, TDC_REFERENCES,
                              TDC_SECONDS_PER_TICK, TDC_SOURCES, TDC_STAMP,
@@ -54,7 +55,8 @@ from ..functions.tdc import (TDC_DATASET, TDC_REFERENCES,
                              tdc_reference_edges)
 from ..functions.timewalk import (TW_CURVE, TW_DEFAULT_CTOT_CUT_NS,
                                   TW_FIELD_ATTR, TW_FIELDS, TW_STAMP,
-                                  add_timewalk_columns, measure_timewalk)
+                                  add_timewalk_columns, corrected_times,
+                                  measure_timewalk)
 from .dataset_view import DatasetViewer
 from .help_window import SECTIONS, HelpWindow
 from .models import FolderModel, JobModel
@@ -2111,10 +2113,14 @@ class MainWindow(QMainWindow):
 
     # -- inspect tab ------------------------------------------------------
 
+    # Inspect tab spacing: tight inside a group, a clear gap between groups
+    # (file / datasets / plots / the bottom panel), so the groups read as such.
+    INSPECT_GAP = 16
+
     def _build_inspect(self, tab):
         lay = QVBoxLayout(tab)
         lay.setContentsMargins(10, 12, 10, 10)
-        lay.setSpacing(8)
+        lay.setSpacing(6)
 
         # Paste or drop a path and press Enter: it opens like Open does.
         self.e_h5 = PathEdit()
@@ -2124,6 +2130,7 @@ class MainWindow(QMainWindow):
                           button("Browse...", self.pick_h5),
                           button("Open", self.open_h5),
                           button("Use selected output", self.inspect_selected_output)))
+        lay.addSpacing(self.INSPECT_GAP - lay.spacing())
 
         cap = QLabel("Datasets")
         cap.setProperty("muted", True)
@@ -2132,9 +2139,11 @@ class MainWindow(QMainWindow):
         lay.addWidget(row(cap, cap_hint, None,
                           button("View rows...", self.view_dataset),
                           spacing=10))
-        self.itable = QTableWidget(0, 5)
-        self.itable.setHorizontalHeaderLabels(
-            ["Name", "Shape", "Dtype", "Chunks", "Compression"])
+        # Rows and field names rather than numpy's shape and dtype repr: the
+        # full dtype is the Fields cell's tooltip. Compression is left out --
+        # Luna writes none.
+        self.itable = QTableWidget(0, 4)
+        self.itable.setHorizontalHeaderLabels(["Name", "Rows", "Fields", "Chunks"])
         self.itable.verticalHeader().setVisible(False)
         self.itable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.itable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -2145,31 +2154,125 @@ class MainWindow(QMainWindow):
         ihdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.itable.setShowGrid(False)
         self.itable.setAlternatingRowColors(True)
-        lay.addWidget(self.itable, 1)
 
-        lay.addWidget(row(
-            button("Hitmap, pixels", lambda: self.plot("hitmap")),
-            button("Hitmap, clusters", lambda: self.plot("cmap")),
-            button("ToT, peak pixel", lambda: self.plot("tot")),
-            button("ToT, cluster total", lambda: self.plot("stot")),
-            button("Cluster size histogram", lambda: self.plot("csize")),
-            button("Time since TDC edge", lambda: self.plot("tdc")),
-            button("Timewalk curve", lambda: self.plot("timewalk")),
-            None))
+        # The table and everything below it share a draggable divider. A file
+        # has a handful of datasets, so the lower half -- the controls, then
+        # the Summary / DCR text -- starts with most of the height.
+        self._fit_itable(4)
+        isplit = QSplitter(Qt.Orientation.Vertical)
+        isplit.setChildrenCollapsible(False)
+        isplit.addWidget(self.itable)
+        lower = QWidget()
+        isplit.addWidget(lower)
+        isplit.setStretchFactor(0, 1)
+        isplit.setStretchFactor(1, 3)
+        lay.addWidget(isplit, 1)
+        # The rest of the tab goes into the lower pane; its top margin is the
+        # gap between the datasets and the plots.
+        lay = QVBoxLayout(lower)
+        lay.setContentsMargins(0, self.INSPECT_GAP - 6, 0, 0)
+        lay.setSpacing(0)
 
+        # Plot buttons in two captioned rows: one row of eight crops every
+        # label on a normal-width window, and the grid keeps the two rows'
+        # buttons starting at the same x. Quiet buttons: they only read the
+        # file, unlike the filled actions on the pages below.
+        plots = QGridLayout()
+        plots.setContentsMargins(0, 0, 0, 0)
+        plots.setHorizontalSpacing(12)
+        plots.setVerticalSpacing(6)
+        for r, (title, buttons) in enumerate((
+                ("Images and spectra", (
+                    ("Hitmap, pixels", "hitmap"),
+                    ("Hitmap, clusters", "cmap"),
+                    ("ToT, peak pixel", "tot"),
+                    ("ToT, cluster total", "stot"),
+                    ("Cluster size histogram", "csize"))),
+                ("Timing", (
+                    ("Time since TDC edge", "tdc"),
+                    ("Timewalk curve", "timewalk"),
+                    ("Time to next cluster", "next_dt"))))):
+            cap = QLabel(title)
+            cap.setProperty("muted", True)
+            plots.addWidget(cap, r, 0)
+            plots.addWidget(row(*[button(text, lambda _=False, k=key: self.plot(k),
+                                         quiet=True)
+                                  for text, key in buttons], None), r, 1)
+        plots.setColumnStretch(1, 1)
+        lay.addLayout(plots)
+        lay.addSpacing(self.INSPECT_GAP)
+
+        # Bottom panel: the file summary, then one page per analysis. Each
+        # page is its settings, what the file holds for it, and its actions
+        # -- the ones that write into the file sit only here.
+        self.itabs = QTabWidget()
+        self.isum = self._report_box()
+        self.itabs.addTab(self.isum, "Summary")
+        self.itabs.addTab(self._build_dcr_page(), "DCR")
+        self.itabs.addTab(self._build_tdc_page(), "TDC")
+        self.itabs.addTab(self._build_timewalk_page(), "Timewalk")
+        lay.addWidget(self.itabs, 1)
+
+    def _fit_itable(self, n_rows, most=7):
+        """Keep the Datasets table tall enough for n_rows (4..most) of its
+        rows, measured as drawn, so a file's datasets show without scrolling
+        unless there are more than `most` of them."""
+        t = self.itable
+        row_h = (t.rowHeight(0) if t.rowCount()
+                 else t.verticalHeader().defaultSectionSize())
+        n = min(max(n_rows, 4), most)
+        t.setMinimumHeight(t.horizontalHeader().sizeHint().height()
+                           + n * row_h + 2 * t.frameWidth() + 2)
+
+    @staticmethod
+    def _report_box(placeholder=""):
+        """The read-only, unwrapped monospaced text of the bottom panel."""
+        box = QPlainTextEdit()
+        box.setReadOnly(True)
+        box.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        if placeholder:
+            box.setPlaceholderText(placeholder)
+        return box
+
+    @staticmethod
+    def _page_layout(page):
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 8, 0, 0)
+        lay.setSpacing(8)
+        return lay
+
+    def _build_tdc_page(self):
+        """The TDC page: the reference, the file's edges, and the actions."""
+        page = QWidget()
+        lay = self._page_layout(page)
         self.c_tdcref_i = QComboBox()
         self.c_tdcref_i.addItems(TDC_REFERENCES)
         self.c_tdcref_i.setCurrentText(self.cfg.get("tdc_reference",
                                                     TDC_REFERENCES[0]))
         self.c_tdcref_i.setToolTip(
-            "Which TDC edge starts the clock. Shared with the same setting on "
-            "the Advanced tab.")
+            "Which TDC edge starts the clock, for the TDC columns and the "
+            "'Time since TDC edge' plot. Shared with the same setting on the "
+            "Advanced tab.")
+        lay.addWidget(row(QLabel("Reference:"), self.c_tdcref_i, None))
+        self.tdc_text = self._report_box(
+            "Open a file: its TDC edges, the period of each reference, and "
+            "any TDC columns already written.")
+        lay.addWidget(self.tdc_text, 1)
         lay.addWidget(row(
-            QLabel("TDC reference:"), self.c_tdcref_i,
-            button("Add TDC columns to this file", self.write_tdc_columns),
-            button("Preview frame", self.preview_tdc_frame),
-            None))
+            button("Preview frame", self.preview_tdc_frame, quiet=True,
+                   tip="The first rows of the data joined with their TDC "
+                       "columns, stored or computed on the fly. Writes "
+                       "nothing."),
+            None,
+            button("Add TDC columns to this file", self.write_tdc_columns,
+                   tip="Writes /PixelHitsTDC and /ClustersTDC into the file; "
+                       "asks first.")))
+        return page
 
+    def _build_timewalk_page(self):
+        """The Timewalk page: the cut, the file's curve, and the action."""
+        page = QWidget()
+        lay = self._page_layout(page)
         self.sp_tw_cut_i = self._ctot_cut_spin(
             self.cfg.get("timewalk_ctot_cut", TW_DEFAULT_CTOT_CUT_NS))
         self.cb_tw_hits_i = QCheckBox("also every pixel hit")
@@ -2177,27 +2280,27 @@ class MainWindow(QMainWindow):
         self.cb_tw_hits_i.setToolTip(
             "Also add toa_tw as a last column of PixelHits: 8 more bytes per "
             "hit. Shared with the same setting on the Advanced tab.")
+        lay.addWidget(row(QLabel("ctot cut:"), self.sp_tw_cut_i,
+                          self.cb_tw_hits_i, None, spacing=8))
+        self.tw_text = self._report_box(
+            "Open a file: its stored timewalk curve and corrected columns, "
+            "if any.")
+        lay.addWidget(self.tw_text, 1)
         lay.addWidget(row(
-            QLabel("Timewalk ctot cut:"), self.sp_tw_cut_i, self.cb_tw_hits_i,
+            button("Timewalk curve", lambda: self.plot("timewalk"), quiet=True,
+                   tip="Plot the curve for this ctot cut: the stored one if "
+                       "the cut matches, else measured now. Writes nothing."),
+            None,
             button("Add timewalk columns to this file",
-                   self.write_timewalk_columns),
-            None))
-
-        # Bottom panel: the file summary, and the DCR analysis beside it.
-        self.itabs = QTabWidget()
-        self.isum = QPlainTextEdit()
-        self.isum.setReadOnly(True)
-        self.isum.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.itabs.addTab(self.isum, "Summary")
-        self.itabs.addTab(self._build_dcr_page(), "DCR")
-        lay.addWidget(self.itabs, 1)
+                   self.write_timewalk_columns,
+                   tip="Writes ctoa_tw (and toa_tw) and /TimewalkCurve into "
+                       "the file; asks first.")))
+        return page
 
     def _build_dcr_page(self):
         """The DCR page: controls, the report, plots and export."""
         page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.setContentsMargins(0, 6, 0, 0)
-        lay.setSpacing(6)
+        lay = self._page_layout(page)
 
         self.c_dcr_time = QComboBox()
         for key, label in TIME_SOURCES.items():
@@ -2237,19 +2340,17 @@ class MainWindow(QMainWindow):
                           QLabel("Noisy pixel:"), self.sp_dcr_k,
                           self.b_dcr, None))
 
-        self.dcr_text = QPlainTextEdit()
-        self.dcr_text.setReadOnly(True)
-        self.dcr_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.dcr_text.setPlaceholderText(
+        self.dcr_text = self._report_box(
             "Open a file, then Compute DCR: rates per pixel and per cluster, "
             "noisy and silent pixels, and the rate frame by frame.")
         lay.addWidget(self.dcr_text, 1)
 
         lay.addWidget(row(
-            button("DCR map, pixels", lambda: self.plot("dcr_map")),
-            button("DCR map, clusters", lambda: self.plot("dcr_cmap")),
-            button("Per-pixel DCR histogram", lambda: self.plot("dcr_hist")),
-            button("Rate vs time", lambda: self.plot("dcr_time")),
+            button("DCR map, pixels", lambda: self.plot("dcr_map"), quiet=True),
+            button("DCR map, clusters", lambda: self.plot("dcr_cmap"), quiet=True),
+            button("Per-pixel DCR histogram", lambda: self.plot("dcr_hist"),
+                   quiet=True),
+            button("Rate vs time", lambda: self.plot("dcr_time"), quiet=True),
             None,
             button("Export CSV...", self.export_dcr_csv,
                    tip="One row per pixel: hits, clusters, their rates, and "
@@ -2286,7 +2387,8 @@ class MainWindow(QMainWindow):
             return
         path = Path(self.e_h5.text())
         self.itable.setRowCount(0)
-        self.isum.clear()
+        for box in (self.isum, self.tdc_text, self.tw_text):
+            box.clear()
         self.h5_listed = path          # what the Datasets table describes
         if self.dcr_path != path:
             self.dcr_counts = self.dcr_path = None
@@ -2309,14 +2411,24 @@ class MainWindow(QMainWindow):
 
                 def visit(name, obj):
                     if isinstance(obj, h5py.Dataset):
-                        rows.append((name, str(obj.shape), str(obj.dtype),
-                                     str(obj.chunks), str(obj.compression)))
+                        rows.append(dataset_row(name, obj))
                 f.visititems(visit)
                 self.itable.setRowCount(len(rows))
+                right = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                 for r, vals in enumerate(rows):
-                    for c, v in enumerate(vals):
-                        self.itable.setItem(r, c, QTableWidgetItem(v))
+                    for c, (text, tip) in enumerate(vals):
+                        item = QTableWidgetItem(text)
+                        if tip:
+                            item.setToolTip(tip)
+                        if c in (1, 3):          # numbers line up on the right
+                            item.setTextAlignment(right)
+                        self.itable.setItem(r, c, item)
                 self.itable.resizeColumnsToContents()
+                # Sizing to contents leaves Fields at its text width until the
+                # next resize; setting the mode again stretches it right away.
+                self.itable.horizontalHeader().setSectionResizeMode(
+                    2, QHeaderView.ResizeMode.Stretch)
+                self._fit_itable(len(rows))
 
                 lines.append("")
                 for key, label in (("PixelHits", "pixel hits"), ("Clusters", "clusters")):
@@ -2344,8 +2456,12 @@ class MainWindow(QMainWindow):
                     cl = f["Clusters"][: min(200000, f["Clusters"].shape[0])]
                     lines.append(f"   mean cluster size (first {len(cl):,}): "
                                  f"{cl['size'].mean():.2f}")
-                lines.extend(self._tdc_summary(f, np, det))
-                lines.extend(self._timewalk_summary(f))
+                tdc_lines = self._tdc_summary(f, np, det)
+                tw_lines = self._timewalk_summary(f)
+                lines.extend(tdc_lines)
+                lines.extend(tw_lines)
+                self.tdc_text.setPlainText("\n".join(tdc_lines))
+                self.tw_text.setPlainText("\n".join(tw_lines))
                 if "ExposureTimeBoundaries" in f:
                     etb = f["ExposureTimeBoundaries"][:]
                     lines.append(f"exposure time boundaries: {len(etb)} entries, "
@@ -2828,6 +2944,8 @@ class MainWindow(QMainWindow):
                     return self._draw_tdc(f, ax, CAP, np)
                 if what == "timewalk":
                     return self._draw_timewalk(f, ax, CAP, np)
+                if what == "next_dt":
+                    return self._draw_next_dt(f, ax, CAP, np)
                 # Only the pixel hitmap comes from PixelHits; everything else
                 # is a cluster-level quantity and reads Clusters.
                 if what == "hitmap":
@@ -2979,6 +3097,75 @@ class MainWindow(QMainWindow):
         ax.set_yscale("log")
         ax.set(title=f"Timewalk, ctot cut {cut} ns -- {used:,} hits\n({src})",
                xlabel="Hit ToT (ns)", ylabel="Time (ns)")
+        ax.legend()
+        return True
+
+    def _eps_t_ns(self):
+        """--eps-t as the Advanced tab would pass it now, in ns, or None."""
+        w = self.flag_w.get("eps_t")
+        text = w.text().strip() if w is not None else ""
+        if not text:
+            text = next(f.shown_default for f in FLAGS if f.key == "eps_t")
+        return duration_ns(text)
+
+    def _draw_next_dt(self, f, ax, CAP, np, step=2_000_000):
+        """Histogram of the gap from each cluster to the next one in time.
+
+        Raw ctoa always; the timewalk-corrected time beside it when the file
+        has one -- Clusters/ctoa_tw, or computed from /TimewalkCurve when only
+        the curve was stored. A dip just below eps_t is the clustering at
+        work: bursts closer than eps_t (and eps_s) were merged into one
+        cluster, and the timewalk correction moves where that cut falls.
+        """
+        if "Clusters" not in f or f["Clusters"].shape[0] < 2:
+            QMessageBox.information(
+                self, APP_NAME, "This file has fewer than two clusters "
+                                "(processed with --disable-clustering?).")
+            return False
+        d = f["Clusters"]
+        n = min(CAP, d.shape[0])
+        det, _judged = self._file_detector(f)
+        stored = "ctoa_tw" in (d.dtype.names or ())
+        curve = f[TW_CURVE][:] if (not stored and TW_CURVE in f) else None
+        fields = ["ctoa"] + (["ctoa_tw"] if stored else
+                             ["ctot"] if curve is not None else [])
+        raw, tw = [], []
+        for i in range(0, n, step):
+            block = d.fields(fields)[i:min(i + step, n)]
+            raw.append(block["ctoa"])
+            if stored:
+                tw.append(block["ctoa_tw"])
+            elif curve is not None:
+                tw.append(corrected_times(block, "Clusters", curve, det, np))
+        series = [("Raw ctoa", "raw", np.concatenate(raw))]
+        if tw:
+            series.append(("Timewalk-corrected", "corrected", np.concatenate(tw)))
+
+        eps = self._eps_t_ns()
+        edges, width = tot_bin_edges(next_dt_range_ns(eps), det.toa_lsb_ns,
+                                     NEXT_DT_TARGET_BINS, np)
+        tick_ns = det.toa_seconds * 1e9
+        over = []
+        for label, short, t in series:
+            dt = next_dt_ticks(t, np) * tick_ns
+            ax.hist(dt, bins=edges, histtype="step", label=label)
+            over.append((short, int((dt > edges[-1]).sum())))
+        if eps:
+            ax.axvline(eps, ls="--", color="0.55",
+                       label=f"eps_t = {eps:g} ns (Advanced tab)")
+
+        notes = []
+        if not tw:
+            notes.append("no timewalk correction in this file")
+        elif not stored:
+            notes.append("corrected times computed from /" + TW_CURVE)
+        if any(o for _w, o in over):          # never truncate silently
+            notes.append(f"not shown, above {edges[-1]:g} ns: "
+                         + ", ".join(f"{w} {o:,}" for w, o in over))
+        ax.set(title=f"Time to the next cluster -- {n:,} clusters"
+               + "".join("\n(" + s + ")" for s in notes),
+               xlabel=f"Time to the next cluster (ns)   ({width:g} ns bins)",
+               ylabel="Clusters (-)", yscale="log")
         ax.legend()
         return True
 

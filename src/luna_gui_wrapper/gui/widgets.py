@@ -99,10 +99,16 @@ class PathsEdit(QPlainTextEdit):
                                        for u in urls) + "\n")
 
 
-def button(text, slot=None, accent=False, toggle=False, danger=False, tip=""):
+def button(text, slot=None, accent=False, toggle=False, danger=False, tip="",
+           quiet=False):
+    """A themed push button. `quiet` draws it as an outline that fills on
+    hover: for rows of many equal buttons (plots), so the few filled ones --
+    the actions -- stand out."""
     b = QPushButton(text)
     if accent:
         b.setProperty("accent", True)
+    if quiet:
+        b.setProperty("quiet", True)
     if danger:
         b.setProperty("danger", True)
     if toggle:

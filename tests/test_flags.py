@@ -78,3 +78,13 @@ def test_max_delay_must_be_below_one():
 def test_keys_and_flags_are_unique():
     assert len({f.key for f in FLAGS}) == len(FLAGS)
     assert len({f.flag for f in FLAGS}) == len(FLAGS)
+
+
+def test_duration_ns_reads_luna_durations():
+    from luna_gui_wrapper.functions.flags import duration_ns
+    assert duration_ns("300ns") == 300.0
+    assert duration_ns("1.5 us") == 1500.0
+    assert duration_ns("2ms") == 2e6
+    assert duration_ns("500ps") == 0.5
+    assert duration_ns("300") is None
+    assert duration_ns("") is None

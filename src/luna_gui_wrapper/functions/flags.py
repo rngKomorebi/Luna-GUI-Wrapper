@@ -204,6 +204,20 @@ def flag_bits(values: dict, translate=str, detector="tpx3") -> list[list[str]]:
     return out
 
 
+_NS_PER_UNIT = {"s": 1e9, "ms": 1e6, "us": 1e3, "ns": 1.0, "ps": 1e-3,
+                "fs": 1e-6}
+
+
+def duration_ns(text):
+    """A duration as Luna takes it ("300ns", "1.5 us") in ns, or None if it
+    is not one."""
+    val = str(text).replace(" ", "")
+    m = _DURATION.match(val)
+    if not m:
+        return None
+    return float(val[:-len(m.group(2))]) * _NS_PER_UNIT[m.group(2)]
+
+
 def flag_args(values: dict, translate=str, detector="tpx3") -> list[str]:
     return [a for bit in flag_bits(values, translate, detector) for a in bit]
 

@@ -34,6 +34,28 @@ def tot_bin_edges(hi, lsb, max_bins, np):
     step = k * lsb
     return np.arange(0.0, hi + step, step), step
 
+# Time to the next cluster: 0..NEXT_DT_MAX_NS, or NEXT_DT_EPS_SPAN x eps_t when
+# that is longer, so the dip at eps_t always sits well inside the plot. ctoa
+# is quantised to the fine ToA step (1.5625 ns on Timepix3), so the bins are a
+# whole number of those steps, aiming for NEXT_DT_TARGET_BINS.
+NEXT_DT_MAX_NS = 1000.0
+NEXT_DT_EPS_SPAN = 3
+NEXT_DT_TARGET_BINS = 160
+
+
+def next_dt_ticks(times, np):
+    """Gap from each time to the next one, in the same ticks. Sorted first,
+    so a table not strictly in time order gives no negative gaps."""
+    t = np.sort(np.asarray(times).astype("int64"))
+    return np.diff(t)
+
+
+def next_dt_range_ns(eps_t_ns=None):
+    """Upper end of the time-to-next-cluster histogram, in ns."""
+    if eps_t_ns and eps_t_ns > 0:
+        return max(NEXT_DT_MAX_NS, NEXT_DT_EPS_SPAN * float(eps_t_ns))
+    return NEXT_DT_MAX_NS
+
 # Hitmaps: when the hottest pixel holds more than HITMAP_CLIP_FACTOR times the
 # HITMAP_CLIP_PERCENTILE-th percentile of the pixels that were hit, the colour
 # scale stops at that percentile, so one hot or reference pixel cannot paint
@@ -63,6 +85,7 @@ PLOT_TITLES = {
     "csize": "Cluster size histogram",
     "tdc": "Time since TDC edge",
     "timewalk": "Timewalk curve",
+    "next_dt": "Time to next cluster",
     "dcr_map": "DCR map, pixels",
     "dcr_cmap": "DCR map, clusters",
     "dcr_hist": "Per-pixel DCR histogram",

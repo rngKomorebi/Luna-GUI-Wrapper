@@ -26,7 +26,7 @@ Importing the package does not import PySide6; only the GUI modules do.
 
 # Single source of the version: pyproject.toml reads it from here, so a
 # plain source checkout (no package metadata) still knows it.
-__version__ = "0.6.2"
+__version__ = "0.7.0"
 
 from .functions.tdc import (
     add_tdc_columns,

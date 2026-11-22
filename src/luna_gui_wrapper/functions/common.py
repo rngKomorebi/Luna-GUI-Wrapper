@@ -47,3 +47,31 @@ def human_size(n: float) -> str:
             return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
         n /= 1024.0
     return f"{n:.1f} GB"
+
+
+def dataset_row(name, ds):
+    """One row of the Inspect tab's Datasets table, as (text, tooltip) pairs:
+    name, rows, fields, chunks.
+
+    Works on anything with h5py's shape / dtype / chunks, so it is testable
+    on a stand-in. A 1-D table shows its length and its field names; the
+    exact numpy shape and dtype are the tooltips.
+    """
+    shape = tuple(ds.shape or ())
+    if len(shape) == 1:
+        rows = f"{shape[0]:,}"
+    elif shape:
+        rows = " x ".join(f"{s:,}" for s in shape)
+    else:
+        rows = "scalar"
+    names = ds.dtype.names
+    fields = ", ".join(names) if names else str(ds.dtype)
+    chunks = ds.chunks
+    if not chunks:
+        chunk_text = "-"
+    elif len(chunks) == 1:
+        chunk_text = f"{chunks[0]:,}"
+    else:
+        chunk_text = " x ".join(f"{c:,}" for c in chunks)
+    return [(name, ""), (rows, f"shape {shape}"), (fields, str(ds.dtype)),
+            (chunk_text, "rows per chunk" if chunks else "not chunked")]

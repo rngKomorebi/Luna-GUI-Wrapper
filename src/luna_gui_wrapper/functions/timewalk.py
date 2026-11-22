@@ -216,6 +216,14 @@ def _corrected(block, t_field, tot_field, curve, det, np):
     return np.clip(t - corr, 0, None).astype("uint64")
 
 
+def corrected_times(block, table, curve, det, np):
+    """The corrected time (ctoa_tw / toa_tw) for rows of `table` that do not
+    carry the field, from a timewalk curve; the values the field would hold.
+    `block` needs the table's time and ToT fields."""
+    t_field, tot_field, _field = TW_FIELDS[table]
+    return _corrected(block, t_field, tot_field, curve, det, np)
+
+
 def _with_field(dtype, field, np):
     """`dtype` with a u8 `field` appended after its last byte, keeping the
     original names, offsets and padding exactly."""

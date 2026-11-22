@@ -86,9 +86,9 @@ a file again converts it and drops them.
 - **Every output of a batch:** **Advanced** → **Wrapper options** → tick
   **Timewalk-correct each output .hdf5**. The row's note then ends with, for
   example, `timewalk (97 ns max)`.
-- **One file:** **Inspect HDF5** → open it → **Add timewalk columns to this
+- **One file:** **Inspect HDF5** → open it → **Timewalk** page → **Add timewalk columns to this
   file**.
-- **Trying a cut first:** **Inspect HDF5** → **Timewalk curve** plots delay
+- **Trying a cut first:** set the cut on the **Timewalk** page, then **Timewalk curve** plots delay
   and jitter against ToT. If the file holds a curve built with the same cut,
   the plot shows it. Otherwise the plot measures one from the first 8 M hits
   and writes nothing.

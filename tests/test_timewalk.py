@@ -194,3 +194,16 @@ def test_refuses_foreign_field(tmp_path):
         tw.add_timewalk_columns(path)
     with h5py.File(path, "r") as f:
         assert tw.TW_CURVE not in f              # nothing written on refusal
+
+
+def test_corrected_times_match_the_stored_field(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    hits, cl = synthetic()
+    path = tmp_path / "run.hdf5"
+    write_file(path, hits, cl)
+    tw.add_timewalk_columns(path, ctot_cut_ns=1000)
+    with h5py.File(path, "r") as f:
+        stored = f["Clusters"]["ctoa_tw"]
+        block = f["Clusters"].fields(["ctoa", "ctot"])[:]
+        curve = f[tw.TW_CURVE][:]
+    assert (tw.corrected_times(block, "Clusters", curve, TPX3, np) == stored).all()
