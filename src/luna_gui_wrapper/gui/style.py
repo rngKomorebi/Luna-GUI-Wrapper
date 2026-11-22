@@ -361,6 +361,7 @@ def build_qss(pal: dict, sans: str, mono: str, size: int = BASE_FONT_SIZE) -> st
     }}
     QProgressBar::chunk {{ background: {pal['primary']}; border-radius: 6px; }}
     QSplitter::handle {{ background: transparent; width: 6px; }}
+    QSplitter::handle:vertical {{ height: 6px; }}
     QScrollBar:vertical {{
         background: transparent; width: 11px; margin: 0;
     }}
@@ -481,6 +482,18 @@ def custom_qss(pal: dict, sans: str, mono: str, size: int = BASE_FONT_SIZE) -> s
     QPushButton[toggle="true"] {{
         border-radius: 6px;
         padding: 4px 14px;
+    }}
+    /* Plot buttons: an outline until hovered, so a row of eight reads as
+       one light strip and the filled buttons beside it as the actions. */
+    QPushButton[quiet="true"] {{
+        background: transparent;
+        border-color: {pal['outline_variant']};
+    }}
+    QPushButton[quiet="true"]:hover {{
+        background: {pal['surface_container_high']};
+    }}
+    QPushButton[quiet="true"]:pressed {{
+        background: {pal['surface_container_highest']};
     }}
     QPushButton[toggle="true"]:checked {{
         background: {pal['primary']};

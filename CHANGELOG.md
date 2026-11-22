@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 22-11-2026
+
+### Added
+
+- **Time to next cluster** plot on the Inspect tab: a histogram of the gap
+  from each cluster to the next in time, raw `ctoa` and, when the file has a
+  timewalk correction, the corrected time overlaid, with a dashed line at the
+  Advanced tab's `--eps-t`.
+
+### Changed
+
+- Inspect tab reorganised. The TDC and timewalk controls moved from their
+  own rows into **TDC** and **Timewalk** pages of the bottom panel, next to
+  Summary and DCR; each page shows what the file holds for it, and the buttons
+  that write into the file now sit only there. The plot buttons are grouped in
+  two captioned rows and drawn as outlines, so the filled buttons are the
+  actions. Wider gaps between the file, datasets, plots and panel.
+- The Datasets table shows **Rows** (`3,931,291`), **Fields** (the field
+  names; the full dtype on hover) and **Chunks** instead of numpy's shape and
+  dtype; Compression is gone. It keeps room for all of a file's datasets, and
+  a draggable divider sits between it and the rest of the tab.
+
 ## [0.6.2] - 22-11-2026
 
 ### Changed

@@ -88,7 +88,7 @@ trigger edges to tag hits with. More in the
 - [Overview](docs/intro.md): what it does, Timepix3 vs Timepix4, the tabs
 - [Installation](docs/installation.md): Linux, Windows (WSL), from source
 - [Usage](docs/usage.md): first run, worked examples, name templates
-- [Inspect HDF5](docs/inspect.md): summary, row viewer, the seven plots
+- [Inspect HDF5](docs/inspect.md): summary, row viewer, the eight plots
 - [TDC](docs/tdc.md): TDC columns and reading them back from Python
 - [Timewalk correction](docs/timewalk.md): corrected times without a TDC
 - [Troubleshooting](docs/troubleshooting.md)

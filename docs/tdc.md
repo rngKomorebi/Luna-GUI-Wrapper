@@ -32,7 +32,7 @@ this cluster belong to" a subtraction rather than a guess.
 
 ## The tdc column
 
-**Inspect HDF5 → Add TDC columns to this file** tags every pixel hit and every
+**Inspect HDF5 → TDC → Add TDC columns to this file** tags every pixel hit and every
 cluster with the TDC edge it follows, and writes the result back into the same
 `.hdf5`. On the Advanced tab, **Add TDC columns to each output .hdf5** does it
 automatically for every file the batch produces.

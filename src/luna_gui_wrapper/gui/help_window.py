@@ -71,6 +71,11 @@ PLOT_NOTES = {
                  "and jitter against hit ToT, log y; the stored curve when its "
                  "ctot cut matches the box, else measured from the first 8 M "
                  "hits without writing anything"),
+    "next_dt": ("Clusters ctoa, and ctoa_tw when corrected", "gap from each "
+                "cluster to the next in time, 0-1000 ns, log y; raw and "
+                "timewalk-corrected overlaid, dashed line at the Advanced "
+                "tab's --eps-t. A dip just below eps_t is the clustering "
+                "merging close bursts"),
 }
 
 TROUBLE = [
@@ -386,25 +391,31 @@ default shown — the same for both where both have the flag. Times carry their 
 <p>Look inside a result. <b>Browse...</b> to a file, or <b>Use selected
 output</b> for the row selected on the Process tab, then <b>Open</b>.</p>
 <ul>
-<li><b>Datasets</b>: every dataset with its shape, type, chunking and
-compression.</li>
+<li><b>Datasets</b>: every dataset with its rows, field names and chunk size;
+hover the fields for the full numpy dtype.</li>
 <li><b>View rows...</b>, or double-click a dataset — its rows in a window of
 their own. It scrolls through the whole dataset, however large: only the rows
 on screen are read. <b>Row</b>, <b>First</b> and <b>Last</b> jump anywhere; row
 numbers count from 0, as h5py does. Hover a column header for its type and
 unit; Ctrl+C copies the selected cells.</li>
-<li><b>Summary</b> (bottom) — counts, fields, ToA and pixel ranges, whether
-ToF was computed, mean cluster size, the TDC edges and their period.</li>
-<li><b>TDC reference</b>: which edge starts the clock for the TDC columns and
-the TDC plot; the same setting as on the Advanced tab.</li>
-<li><b>Add TDC columns to this file</b>: writes them now, for this file.</li>
-<li><b>Preview frame</b>: the first rows of the data joined with their TDC
-columns.</li>
-<li><b>Timewalk ctot cut</b>, <b>also every pixel hit</b>: the same settings
-as on the Advanced tab. <b>Add timewalk columns to this file</b> writes them
-now, for this file.</li>
 </ul>
-<p>The seven plots read the file in slices, so large files are fine, and each
+<p>The panel at the bottom has four pages. The buttons that write into the
+file are only here, each on its own page, and ask before writing.</p>
+<ul>
+<li><b>Summary</b> — counts, fields, ToA and pixel ranges, whether ToF was
+computed, mean cluster size, the TDC edges and the timewalk curve.</li>
+<li><b>DCR</b> — the dark count rate per pixel and per cluster.</li>
+<li><b>TDC</b> — the file's TDC edges and the period of each reference.
+<b>Reference</b> picks the edge that starts the clock for the TDC columns and
+the <i>Time since TDC edge</i> plot (the same setting as on the Advanced tab).
+<b>Preview frame</b> shows the first rows joined with their TDC columns;
+<b>Add TDC columns to this file</b> writes them.</li>
+<li><b>Timewalk</b> — the stored curve and corrected columns, if any.
+<b>ctot cut</b> and <b>also every pixel hit</b> are the same settings as on the
+Advanced tab; the cut also sets the <i>Timewalk curve</i> plot. <b>Add timewalk
+columns to this file</b> writes them.</li>
+</ul>
+<p>The eight plots read the file in slices, so large files are fine, and each
 opens in its own window for side-by-side comparison.</p>
 {plots}
 

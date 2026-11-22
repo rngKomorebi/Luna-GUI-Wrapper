@@ -67,7 +67,7 @@ Timepix4 too. Setting up Timepix4 is in
 |---|---|
 | **Process** | The whole everyday job: pick the detector, add input, press Run, watch the log. |
 | **Advanced** | Luna folder, output placement, renaming, converter flags, command preview, script export. All optional. |
-| **Inspect HDF5** | Look inside a result: datasets, counts, ToA range, TDC edges, the rows themselves, seven plots, and the buttons that write the TDC and timewalk columns. See [Inspect HDF5](inspect.md). |
+| **Inspect HDF5** | Look inside a result: datasets, counts, ToA range, TDC edges, the rows themselves, eight plots, and the buttons that write the TDC and timewalk columns. See [Inspect HDF5](inspect.md). |
 
 **Help** in the menu bar above the tabs (or F1) opens a Help window: what every
 tab, option and converter flag does, the name-template placeholders, the

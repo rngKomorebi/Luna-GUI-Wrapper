@@ -8,9 +8,9 @@ file came from: the two are told apart by their ToT values, and each is
 plotted and labelled in its own units (see
 [Timepix3 and Timepix4](intro.md#timepix3-and-timepix4)).
 
-## The seven plots
+## The eight plots
 
-All seven read the HDF5 in slices, so multi-GB files do not exhaust memory, and
+All eight read the HDF5 in slices, so multi-GB files do not exhaust memory, and
 each opens in its own modeless window, so several can be compared side by side.
 
 | Plot | Source | Binning / scale |
@@ -22,6 +22,7 @@ each opens in its own modeless window, so several can be compared side by side.
 | **Cluster size histogram** | `Clusters` `size` | 40 bins over 0–40, linear y |
 | **Time since TDC edge** | `Clusters` `ctoa` − `TDCEvents` | 200 bins over one trigger period, log y (Timepix3 only) |
 | **Timewalk curve** | `PixelHits` `toa` − its cluster's `ctoa` | delay and jitter per 25 ns ToT bin, log y; the stored curve if its ctot cut matches, else measured from the first 8 M hits. See [Timewalk correction](timewalk.md) |
+| **Time to next cluster** | `Clusters` `ctoa`, and `ctoa_tw` when the file has a timewalk correction | gap from each cluster to the next in time, over 0–1000 ns (or 3 × eps_t if longer) in bins of whole ToA steps (6.25 ns on Timepix3), log y; raw and timewalk-corrected curves overlaid, dashed line at the Advanced tab's `--eps-t` |
 
 | | |
 |---|---|
@@ -45,11 +46,35 @@ The cluster size histogram is capped at 40 pixels because that is where the
 distribution lives; anything above is counted and stated in the plot title
 rather than dropped without saying so.
 
-## Summary and DCR
+**Time to next cluster** shows how well the clustering separated events. Two
+bursts closer than `--eps-t` (and `--eps-s`) are merged into one cluster, so
+the histogram dips just below eps_t and the clusters that should have been
+merged pile up just above it. The timewalk-corrected curve is drawn whenever
+the file has a correction: `Clusters/ctoa_tw`, or computed from
+`/TimewalkCurve` when only the curve was stored. The file does not record
+which `--eps-t` it was processed with, so the dashed line marks the value on
+the Advanced tab now (this GUI's 300 ns when the field is empty). Gaps beyond
+the plotted range are counted in the title.
 
-The panel under the plot buttons has two pages. **Summary** is filled as
-soon as a file opens. **DCR** computes the dark count rate per pixel and per
-cluster on request; see [Dark count rate](dcr.md).
+## The bottom panel: Summary, DCR, TDC, Timewalk
+
+The panel under the plot buttons has four pages. The plot buttons above only
+read the file; the buttons that write into it sit only on these pages, and
+ask before writing.
+
+- **Summary** is filled as soon as a file opens.
+- **DCR** computes the dark count rate per pixel and per cluster on request;
+  see [Dark count rate](dcr.md).
+- **TDC** shows the file's TDC edges and the period of each reference.
+  **Reference** sets the edge for the TDC columns and the *Time since TDC
+  edge* plot; **Preview frame** and **Add TDC columns to this file** are
+  described in [TDC columns](tdc.md).
+- **Timewalk** shows the stored curve and corrected columns, if any. The
+  **ctot cut** also sets the *Timewalk curve* plot; **Add timewalk columns to
+  this file** is described in [Timewalk correction](timewalk.md).
+
+The divider between the **Datasets** table and the plot buttons can be
+dragged; the table always keeps room for the file's datasets (up to seven).
 
 ## Looking at the rows themselves
 
