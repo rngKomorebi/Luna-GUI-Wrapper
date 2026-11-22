@@ -252,14 +252,24 @@ without WSL.
 
 ### 8. TDC columns on every output
 
-Timepix3 only. **Advanced** → **After processing** → tick **Add TDC columns to
+Timepix3 only. **Advanced** → **Wrapper options** → tick **Add TDC columns to
 each output .hdf5** and pick the reference edge. After `tpx3dump` finishes
 each file, the GUI tags every pixel hit and cluster with the TDC edge it
 follows, in the same batch. The row's note then reads, for example,
 `412.0 MB in 38.2s, TDC TDC1Rising (1,204,733 rows)`. See [TDC](tdc.md) for
 what is written and how to read it back.
 
-### 9. Timepix4
+### 9. Timewalk-corrected times on every output
+
+**Advanced** → **Wrapper options** → tick **Timewalk-correct each output
+.hdf5**. After the converter finishes each file, the GUI measures the
+timewalk curve from that file's own clusters and writes corrected cluster
+times as a last column of `Clusters` (`ctoa_tw`), plus the curve itself. No TDC is
+needed, and dark-count data works as well as a focused spot. Tick **also
+every pixel hit** for a corrected time per hit too. See
+[Timewalk correction](timewalk.md).
+
+### 10. Timepix4
 
 On the **Process** tab, **Detector** → **Timepix4**. Then, once: **Advanced**
 → **Luna installation** → **Browse...** to your Timepix4 Luna, for example

@@ -15,10 +15,11 @@ from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QActionGroup, QFontDatabase, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
+    QDoubleSpinBox,
     QDialogButtonBox, QFileDialog, QFrame, QGridLayout, QGroupBox,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QMainWindow,
     QMessageBox, QPlainTextEdit, QProgressBar, QRadioButton, QScrollArea,
-    QSplitter, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout,
+    QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout,
     QWidget)
 
 from .. import __version__
@@ -28,6 +29,10 @@ from ..functions.backend import (Backend, detect_backend, drive_letter,
 from ..functions.common import (_NO_WINDOW, APP_NAME, ICON_PATH, IS_WINDOWS,
                                 human_size)
 from ..functions.config import load_config, save_config
+from ..functions.dcr import (DCR_DEFAULT_NOISY_K, DCR_DEFAULT_TIME_SOURCE,
+                             TIME_SOURCES, dcr_maps, dcr_report,
+                             find_measurement_metadata, fmt_rate,
+                             measure_dcr, pick_time, write_dcr_csv)
 from ..functions.detectors import DETECTORS, TPX3, TPX4, detect_from_file
 from ..functions.failures import diagnose, still_fails
 from ..functions.flags import (FLAG_GROUPS, FLAGS, flag_args, flag_bits,
@@ -45,6 +50,9 @@ from ..functions.tdc import (TDC_DATASET, TDC_REFERENCES,
                              describe_tdc_types, read_tdc_events, read_tdcs,
                              read_with_tdc, tag_times_with_tdc,
                              tdc_reference_edges)
+from ..functions.timewalk import (TW_CURVE, TW_DEFAULT_CTOT_CUT_NS,
+                                  TW_FIELD_ATTR, TW_FIELDS, TW_STAMP,
+                                  add_timewalk_columns, measure_timewalk)
 from .dataset_view import DatasetViewer
 from .help_window import SECTIONS, HelpWindow
 from .models import FolderModel, JobModel
@@ -250,8 +258,9 @@ class MainWindow(QMainWindow):
                 w.setVisible(d.key in f.detectors)
         for cap, group in self.flag_caps:
             cap.setVisible(any(d.key in f.detectors for f in group))
-        # tpx4dump records no TDC edges, so there is nothing to tag from.
-        self.g_post.setVisible(d is TPX3)
+        # tpx4dump records no TDC edges, so there is nothing to tag from. The
+        # timewalk row stays: it needs only hits and clusters.
+        self.w_tdc_row.setVisible(d is TPX3)
         self.b_add_folders.setToolTip(
             f"Queue every {d.suffix} found under one or more folders")
         self.refresh_backend()
@@ -300,6 +309,11 @@ class MainWindow(QMainWindow):
         # button turns yellow the moment anything deviates from the plain run,
         # and lists it all on a click.
         self.b_adv = button("Advanced flags", self.show_adv_flags)
+        # Its green sibling: what this GUI does after Luna (TDC columns,
+        # timewalk), shown only while one of those is switched on.
+        self.b_wrap = button("Wrapper options", self.show_wrapper_options)
+        self.b_wrap.setProperty("wrap", "on")
+        self.b_wrap.setVisible(False)
         # Which detector the batch is for: picks the Luna converter, the raw
         # files a folder scan queues, and the flags on offer.
         self.b_tpx3 = button("Timepix3", lambda: self.switch_detector("tpx3"),
@@ -309,7 +323,8 @@ class MainWindow(QMainWindow):
         cap_det = QLabel("Detector")
         cap_det.setProperty("muted", True)
         lay.addWidget(row(cap_det, self.b_tpx3, self.b_tpx4, vline(),
-                          self.lbl_status, None, self.b_adv, self.b_setup,
+                          self.lbl_status, None, self.b_wrap, self.b_adv,
+                          self.b_setup,
                           spacing=6))
 
         # Additive actions on the left, the destructive one pushed to the far
@@ -575,13 +590,20 @@ class MainWindow(QMainWindow):
                      r + 3, 0, 1, 3)
         lay.addWidget(g_opt)
 
-        # After processing ---------------------------------------------------
-        # Not a tpx3dump flag: the GUI reopens the finished .hdf5 and writes
-        # the TDC columns into it itself. Kept visually apart from the flags
-        # above so it is never mistaken for one.
-        g_post = self.g_post = QGroupBox("After processing  (this GUI, not Luna)")
-        gp = QHBoxLayout(g_post)
+        # Wrapper options ----------------------------------------------------
+        # Not Luna flags: after Luna finishes, the GUI reopens each .hdf5 and
+        # writes these columns into it itself. Kept in a box of their own so
+        # they are never mistaken for flags passed to tpx3dump / tpx4dump.
+        g_post = self.g_post = QGroupBox(
+            "Wrapper options  (run by this GUI after Luna, not Luna flags)")
+        gpv = QVBoxLayout(g_post)
+        gpv.setSpacing(6)
+        # Its own widget, so Timepix4 can hide the TDC row and keep the rest.
+        self.w_tdc_row = QWidget()
+        gp = QHBoxLayout(self.w_tdc_row)
+        gp.setContentsMargins(0, 0, 0, 0)
         gp.setSpacing(8)
+        gpv.addWidget(self.w_tdc_row)
         self.cb_tdc = QCheckBox("Add TDC columns to each output .hdf5")
         self.cb_tdc.setChecked(bool(self.cfg.get("tdc_columns", False)))
         self.cb_tdc.setToolTip(
@@ -600,6 +622,39 @@ class MainWindow(QMainWindow):
         self.cb_tdc.toggled.connect(self.c_tdcref.setEnabled)
         gp.addWidget(self.c_tdcref)
         gp.addStretch(1)
+
+        # Timewalk: measured from the file's own clusters, no TDC needed.
+        self.cb_tw = QCheckBox("Timewalk-correct each output .hdf5")
+        self.cb_tw.setChecked(bool(self.cfg.get("timewalk_columns", False)))
+        self.cb_tw.setToolTip(
+            "Measure the timewalk curve from the file's own clusters (each "
+            "hit's ToA relative to the largest-ToT pixel of its cluster) and "
+            "add the timewalk-corrected cluster time as a last column of "
+            "Clusters (ctoa_tw), plus the curve as /TimewalkCurve. Needs pixel "
+            "hits and clusters; no TDC. Adding a column rewrites the file once, "
+            "which needs free space for one more copy of it.")
+        self.sp_tw_cut = self._ctot_cut_spin(
+            self.cfg.get("timewalk_ctot_cut", TW_DEFAULT_CTOT_CUT_NS))
+        self.cb_tw_hits = QCheckBox("also every pixel hit (slower)")
+        self.cb_tw_hits.setChecked(bool(self.cfg.get("timewalk_hits", False)))
+        self.cb_tw_hits.setToolTip(
+            "Also add the corrected time of every pixel hit as a last column "
+            "of PixelHits (toa_tw): 8 more bytes per hit. Without it, "
+            "read_with_timewalk() still computes toa_tw on the fly from the "
+            "stored curve.")
+        for w in (self.sp_tw_cut, self.cb_tw_hits):
+            w.setEnabled(self.cb_tw.isChecked())
+            self.cb_tw.toggled.connect(w.setEnabled)
+        gt = QHBoxLayout()
+        gt.setSpacing(8)
+        gt.addWidget(self.cb_tw)
+        gt.addSpacing(10)
+        gt.addWidget(QLabel("ctot cut:"))
+        gt.addWidget(self.sp_tw_cut)
+        gt.addSpacing(10)
+        gt.addWidget(self.cb_tw_hits)
+        gt.addStretch(1)
+        gpv.addLayout(gt)
         lay.addWidget(g_post)
         lay.addStretch(1)
 
@@ -652,6 +707,23 @@ class MainWindow(QMainWindow):
         e.setFixedWidth(170)
         return e
 
+    @staticmethod
+    def _ctot_cut_spin(value):
+        """The timewalk ctot cut, in ns. Same box on the Advanced and Inspect
+        tabs, kept in step by _connect_option_signals."""
+        sp = QSpinBox()
+        sp.setRange(0, 25000)
+        sp.setSingleStep(25)
+        sp.setSuffix(" ns")
+        sp.setValue(int(float(value)))
+        sp.setToolTip(
+            "Only clusters whose largest pixel ToT is at least this build the "
+            "timewalk curve, so the reference pixel walks little itself. "
+            "1000 ns keeps that below ~5 ns on a Timepix3Cam. Lower it if a "
+            "file has few bright clusters. Not Luna's --ctot-cut, which only "
+            "applies to Luna's own timewalk statistics.")
+        return sp
+
     def _pick_flag_file(self, edit):
         p, _ = QFileDialog.getOpenFileName(
             self, "Select an earlier tpx3dump output", edit.text(),
@@ -690,9 +762,16 @@ class MainWindow(QMainWindow):
             else:
                 w.textChanged.connect(self.update_adv_summary)
         self.c_tdcref.currentTextChanged.connect(self.update_adv_summary)
-        for w in (self.cb_skip, self.cb_tdc, self.rb_beside, self.rb_flat,
-                  self.rb_mirror):
+        self.sp_tw_cut.valueChanged.connect(self.update_adv_summary)
+        for w in (self.cb_skip, self.cb_tdc, self.cb_tw, self.cb_tw_hits,
+                  self.rb_beside, self.rb_flat, self.rb_mirror):
             w.toggled.connect(self.update_adv_summary)
+        # The ctot cut and the per-hit choice also live on the Inspect tab;
+        # setValue / setChecked emit nothing when unchanged, so pairs settle.
+        self.sp_tw_cut.valueChanged.connect(self.sp_tw_cut_i.setValue)
+        self.sp_tw_cut_i.valueChanged.connect(self.sp_tw_cut.setValue)
+        self.cb_tw_hits.toggled.connect(self.cb_tw_hits_i.setChecked)
+        self.cb_tw_hits_i.toggled.connect(self.cb_tw_hits.setChecked)
         # One TDC reference, two places to set it. setCurrentText is a no-op
         # when the text already matches, so Qt emits nothing back and the pair
         # settles instead of ping-ponging.
@@ -760,6 +839,10 @@ class MainWindow(QMainWindow):
         Timepix4: tpx4dump records no TDC edges to tag from."""
         return self.cb_tdc.isChecked() and self.det is TPX3
 
+    def timewalk_after_run(self):
+        """Whether each finished file gets timewalk-corrected times written."""
+        return self.cb_tw.isChecked()
+
     def advanced_bits(self):
         """Everything that deviates from the plain run, one item per setting."""
         bits = []
@@ -778,9 +861,20 @@ class MainWindow(QMainWindow):
                                                  detector=self.det.key)]
         if self.e_extra.text().strip():
             bits.append("extra arguments: " + self.e_extra.text().strip())
+        return bits
+
+    def wrapper_bits(self):
+        """What this GUI does to each output after Luna, one item each.
+        Kept apart from advanced_bits: none of it changes the Luna command."""
+        bits = []
         if self.tdc_after_run():
             bits.append("TDC columns after processing (" +
                         self.c_tdcref.currentText() + ")")
+        if self.timewalk_after_run():
+            bits.append(f"timewalk correction after processing (ctot cut "
+                        f"{self.sp_tw_cut.value()} ns, clusters"
+                        + (" and every pixel hit)" if self.cb_tw_hits.isChecked()
+                           else ")"))
         return bits
 
     def update_adv_summary(self, *_a):
@@ -793,19 +887,36 @@ class MainWindow(QMainWindow):
                               + self.plain_command())
         self.b_adv.style().unpolish(self.b_adv)
         self.b_adv.style().polish(self.b_adv)
+        # Green, and only there while something is on: the GUI's own steps
+        # after Luna, so they are never mistaken for Luna flags.
+        wbits = self.wrapper_bits()
+        self.b_wrap.setVisible(bool(wbits))
+        self.b_wrap.setText(f"Wrapper options ({len(wbits)})")
+        self.b_wrap.setToolTip("Run by this GUI after Luna, not Luna flags:\n"
+                               + "\n".join(wbits))
 
-    def show_adv_flags(self):
-        """List every setting in effect, one per row."""
-        bits = self.advanced_bits()
+    def show_wrapper_options(self):
+        self.show_adv_flags(wrapper=True)
+
+    def show_adv_flags(self, wrapper=False):
+        """List every setting in effect, one per row: the Luna-side ones, or
+        with `wrapper` the GUI's own post-processing."""
+        bits = self.wrapper_bits() if wrapper else self.advanced_bits()
         dlg = QDialog(self)
-        dlg.setWindowTitle("Advanced flags in effect")
+        dlg.setWindowTitle("Wrapper options in effect" if wrapper
+                           else "Advanced flags in effect")
         dlg.resize(620, 380)
         lay = QVBoxLayout(dlg)
         lay.setContentsMargins(14, 14, 14, 12)
         lay.setSpacing(8)
         if bits:
-            head = QLabel(f"{len(bits)} setting(s) differ from the plain run "
-                          "and apply to every queued file:")
+            head = QLabel(
+                f"After Luna finishes each file, this GUI runs {len(bits)} "
+                "step(s) on its output. They do not change the Luna command:"
+                if wrapper else
+                f"{len(bits)} setting(s) differ from the plain run and apply "
+                "to every queued file:")
+            head.setWordWrap(True)
             head.setProperty("muted", True)
             lay.addWidget(head)
             lst = QListWidget()
@@ -853,6 +964,9 @@ class MainWindow(QMainWindow):
                 w.clear()
         self.cb_tdc.setChecked(False)
         self.c_tdcref.setCurrentText(TDC_REFERENCES[0])
+        self.cb_tw.setChecked(False)
+        self.sp_tw_cut.setValue(int(TW_DEFAULT_CTOT_CUT_NS))
+        self.cb_tw_hits.setChecked(False)
         self.recompute_outputs()
         self.log("Advanced settings reset to defaults.")
 
@@ -1778,23 +1892,37 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._start_next)
 
     def _tag_output(self, job):
-        """Post-process one finished output: write its TDC columns.
+        """Post-process one finished output: the wrapper options.
 
         Runs inline between jobs on purpose -- it is the same sequential batch
         the user started, and doing it here means the file is complete before
-        the queue moves on. Never fails the job: the .hdf5 tpx3dump wrote is
-        good either way, so a TDC problem is reported and the run continues.
+        the queue moves on. Never fails the job: the .hdf5 Luna wrote is good
+        either way, so a problem is reported and the run continues.
         """
-        if not self.tdc_after_run():
-            return ""
-        ref = self.c_tdcref.currentText()
-        try:
-            res = add_tdc_columns(job.dst, ref, log=self.log)
-        except Exception as exc:
-            self.log("  TDC columns skipped: " + str(exc))
-            return ", no TDC"
-        tagged = sum(v["tagged"] for v in res.values())
-        return f", TDC {ref} ({tagged:,} rows)"
+        note = ""
+        if self.tdc_after_run():
+            ref = self.c_tdcref.currentText()
+            try:
+                res = add_tdc_columns(job.dst, ref, log=self.log)
+                tagged = sum(v["tagged"] for v in res.values())
+                note += f", TDC {ref} ({tagged:,} rows)"
+            except Exception as exc:
+                self.log("  TDC columns skipped: " + str(exc))
+                note += ", no TDC"
+        if self.timewalk_after_run():
+            try:
+                self._busy(True)
+                res = add_timewalk_columns(
+                    job.dst, ctot_cut_ns=self.sp_tw_cut.value(),
+                    pixel_hits=self.cb_tw_hits.isChecked(), detector=self.det,
+                    log=self.log)
+                note += f", timewalk ({res[TW_CURVE]['delay_ns_lowest_tot']:.0f} ns max)"
+            except Exception as exc:
+                self.log("  Timewalk correction skipped: " + str(exc))
+                note += ", no timewalk"
+            finally:
+                self._busy(False)
+        return note
 
     def _finish(self):
         self.b_run.setEnabled(True)
@@ -1841,6 +1969,11 @@ class MainWindow(QMainWindow):
             **self.flag_values(),
             "tdc_columns": self.cb_tdc.isChecked(),
             "tdc_reference": self.c_tdcref.currentText(),
+            "timewalk_columns": self.cb_tw.isChecked(),
+            "timewalk_ctot_cut": self.sp_tw_cut.value(),
+            "timewalk_hits": self.cb_tw_hits.isChecked(),
+            "dcr_time_source": self.c_dcr_time.currentData(),
+            "dcr_noisy_k": self.sp_dcr_k.value(),
             "extra": self.e_extra.text(),
             "theme": self.theme_name,
         })
@@ -1903,6 +2036,7 @@ class MainWindow(QMainWindow):
             button("ToT, cluster total", lambda: self.plot("stot")),
             button("Cluster size histogram", lambda: self.plot("csize")),
             button("Time since TDC edge", lambda: self.plot("tdc")),
+            button("Timewalk curve", lambda: self.plot("timewalk")),
             None))
 
         self.c_tdcref_i = QComboBox()
@@ -1918,10 +2052,93 @@ class MainWindow(QMainWindow):
             button("Preview frame", self.preview_tdc_frame),
             None))
 
+        self.sp_tw_cut_i = self._ctot_cut_spin(
+            self.cfg.get("timewalk_ctot_cut", TW_DEFAULT_CTOT_CUT_NS))
+        self.cb_tw_hits_i = QCheckBox("also every pixel hit")
+        self.cb_tw_hits_i.setChecked(bool(self.cfg.get("timewalk_hits", False)))
+        self.cb_tw_hits_i.setToolTip(
+            "Also add toa_tw as a last column of PixelHits: 8 more bytes per "
+            "hit. Shared with the same setting on the Advanced tab.")
+        lay.addWidget(row(
+            QLabel("Timewalk ctot cut:"), self.sp_tw_cut_i, self.cb_tw_hits_i,
+            button("Add timewalk columns to this file",
+                   self.write_timewalk_columns),
+            None))
+
+        # Bottom panel: the file summary, and the DCR analysis beside it.
+        self.itabs = QTabWidget()
         self.isum = QPlainTextEdit()
         self.isum.setReadOnly(True)
         self.isum.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        lay.addWidget(self.isum, 1)
+        self.itabs.addTab(self.isum, "Summary")
+        self.itabs.addTab(self._build_dcr_page(), "DCR")
+        lay.addWidget(self.itabs, 1)
+
+    def _build_dcr_page(self):
+        """The DCR page: controls, the report, plots and export."""
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 6, 0, 0)
+        lay.setSpacing(6)
+
+        self.c_dcr_time = QComboBox()
+        for key, label in TIME_SOURCES.items():
+            self.c_dcr_time.addItem(label, key)
+        i = self.c_dcr_time.findData(
+            self.cfg.get("dcr_time_source", DCR_DEFAULT_TIME_SOURCE))
+        self.c_dcr_time.setCurrentIndex(max(i, 0))
+        self.c_dcr_time.setToolTip(
+            "What the counts are divided by.\n"
+            "Frames, live time from ToA: first-to-last hit minus the gaps "
+            "between frames, found in the hits themselves.\n"
+            "Frames x exposure: NumberOfFrames x ExposureTime from "
+            "measurement_metadata.json.\n"
+            "ToA span: first to last hit, gaps between frames included.\n"
+            "Wall clock: StartDateTime to StopDateTime, overhead included.")
+        self.c_dcr_time.currentIndexChanged.connect(self._render_dcr)
+
+        self.sp_dcr_k = QDoubleSpinBox()
+        self.sp_dcr_k.setRange(1.5, 10000)
+        self.sp_dcr_k.setDecimals(1)
+        self.sp_dcr_k.setSingleStep(1)
+        self.sp_dcr_k.setPrefix("> ")
+        self.sp_dcr_k.setSuffix(" x median")
+        self.sp_dcr_k.setValue(float(self.cfg.get("dcr_noisy_k",
+                                                  DCR_DEFAULT_NOISY_K)))
+        self.sp_dcr_k.setToolTip(
+            "A pixel is noisy when its hit count is above this many times the "
+            "median of the pixels that counted. Noisy pixels are left out of "
+            "the 'clean' rates.")
+        self.sp_dcr_k.valueChanged.connect(self._render_dcr)
+
+        self.b_dcr = button("Compute DCR", self.compute_dcr, accent=True,
+                            tip="Read every pixel hit and cluster of the open "
+                                "file once; changing the time base or the "
+                                "noisy cut afterwards needs no new read.")
+        lay.addWidget(row(QLabel("Time base:"), self.c_dcr_time,
+                          QLabel("Noisy pixel:"), self.sp_dcr_k,
+                          self.b_dcr, None))
+
+        self.dcr_text = QPlainTextEdit()
+        self.dcr_text.setReadOnly(True)
+        self.dcr_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.dcr_text.setPlaceholderText(
+            "Open a file, then Compute DCR: rates per pixel and per cluster, "
+            "noisy and silent pixels, and the rate frame by frame.")
+        lay.addWidget(self.dcr_text, 1)
+
+        lay.addWidget(row(
+            button("DCR map, pixels", lambda: self.plot("dcr_map")),
+            button("DCR map, clusters", lambda: self.plot("dcr_cmap")),
+            button("Per-pixel DCR histogram", lambda: self.plot("dcr_hist")),
+            button("Rate vs time", lambda: self.plot("dcr_time")),
+            None,
+            button("Export CSV...", self.export_dcr_csv,
+                   tip="One row per pixel: hits, clusters, their rates, and "
+                       "the noisy / silent flags.")))
+        self.dcr_counts = None          # measure_dcr() result
+        self.dcr_path = None            # the file it describes
+        return page
 
     def pick_h5(self):
         p, _ = QFileDialog.getOpenFileName(
@@ -1953,6 +2170,9 @@ class MainWindow(QMainWindow):
         self.itable.setRowCount(0)
         self.isum.clear()
         self.h5_listed = path          # what the Datasets table describes
+        if self.dcr_path != path:
+            self.dcr_counts = self.dcr_path = None
+            self.dcr_text.clear()
         if not path.is_file():
             self.isum.setPlainText("No such file: " + str(path))
             return
@@ -2007,6 +2227,7 @@ class MainWindow(QMainWindow):
                     lines.append(f"   mean cluster size (first {len(cl):,}): "
                                  f"{cl['size'].mean():.2f}")
                 lines.extend(self._tdc_summary(f, np, det))
+                lines.extend(self._timewalk_summary(f))
                 if "ExposureTimeBoundaries" in f:
                     etb = f["ExposureTimeBoundaries"][:]
                     lines.append(f"exposure time boundaries: {len(etb)} entries, "
@@ -2073,6 +2294,79 @@ class MainWindow(QMainWindow):
                            + ("" if a.get("written_by") == TDC_STAMP
                               else "  [not written by this GUI]"))
         return out
+
+    def _timewalk_summary(self, f):
+        """The timewalk block of the Inspect summary: curve and columns."""
+        if TW_CURVE not in f:
+            return ["timewalk       not corrected (no /" + TW_CURVE + ")"]
+        a = f[TW_CURVE].attrs
+        c = f[TW_CURVE][:]
+        out = [f"timewalk       curve from {int(a.get('hits_used', 0)):,} hits, "
+               f"ctot cut {a.get('ctot_cut_ns', '?'):g} ns"
+               + ("" if a.get("written_by") == TW_STAMP
+                  else "  [not written by this GUI]")]
+        if len(c):
+            out.append(f"   {c['delay_ns'][0]:.1f} ns at ToT {c['tot_ns'][0]:.0f} ns"
+                       f" .. {c['delay_ns'][-1]:.2f} ns at ToT "
+                       f"{c['tot_ns'][-1]:.0f} ns")
+        for tname, (_t, _tot, field_name) in TW_FIELDS.items():
+            if tname in f and field_name in (f[tname].dtype.names or ()):
+                mine = f[tname].attrs.get(TW_FIELD_ATTR) == field_name
+                out.append(f"   {tname}/{field_name}: last column"
+                           + ("" if mine else "  [not written by this GUI]"))
+        return out
+
+    # -- timewalk columns -------------------------------------------------
+
+    def write_timewalk_columns(self):
+        """Measure this file's timewalk curve and write corrected times."""
+        h5py, np = require_h5py(self)
+        if h5py is None:
+            return
+        path = Path(self.e_h5.text())
+        if not path.is_file():
+            QMessageBox.information(self, APP_NAME, "Open an HDF5 file first.")
+            return
+        cut = self.sp_tw_cut_i.value()
+        hits = self.cb_tw_hits_i.isChecked()
+        if QMessageBox.question(
+                self, APP_NAME,
+                f"Add timewalk-corrected times to\n{path.name}\n\n"
+                f"ctot cut: {cut} ns\n\n"
+                "This modifies the file. It adds ctoa_tw as the last column of "
+                "Clusters" + (" and toa_tw as the last column of PixelHits"
+                              if hits else "")
+                + ", and the curve as /TimewalkCurve. The first time, the file "
+                "is rewritten once (via a temporary copy beside it, so it "
+                "needs that much free space); Luna's other columns are kept "
+                "as they are.\n\nContinue?"
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.tabs.setCurrentWidget(self.tab_inspect)
+        self.log(f"Adding timewalk columns to {path.name} (ctot cut {cut} ns)")
+        try:
+            self._busy(True)
+            with h5py.File(path, "r") as f:
+                det, _judged = self._file_detector(f)
+            res = add_timewalk_columns(path, ctot_cut_ns=cut, pixel_hits=hits,
+                                       detector=det, log=self.log)
+        except Exception as exc:
+            self.log("  FAILED: " + str(exc))
+            QMessageBox.critical(self, APP_NAME,
+                                 "Could not write the timewalk columns.\n\n"
+                                 + str(exc))
+            return
+        finally:
+            self._busy(False)
+        self.open_h5()          # refresh the dataset table with the new ones
+        c = res[TW_CURVE]
+        QMessageBox.information(
+            self, APP_NAME,
+            f"Timewalk columns written.\n\nCurve from {c['hits_used']:,} hits "
+            f"in {c['bins']} ToT bins; {c['delay_ns_lowest_tot']:.1f} ns of "
+            "walk at the lowest ToT.\n\n" + "\n".join(
+                f"{k}/{v['field']}: {v['rows']:,} rows" for k, v in res.items()
+                if k != TW_CURVE))
 
     # -- TDC columns ------------------------------------------------------
 
@@ -2179,6 +2473,184 @@ class MainWindow(QMainWindow):
             QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
+    # -- DCR --------------------------------------------------------------
+
+    def compute_dcr(self):
+        """One pass over the open file; the DCR page then renders from it."""
+        h5py, np = require_h5py(self)
+        if h5py is None:
+            return
+        path = Path(self.e_h5.text())
+        if not path.is_file():
+            QMessageBox.information(self, APP_NAME, "Open an HDF5 file first.")
+            return
+        self.itabs.setCurrentIndex(1)
+        self.b_dcr.setEnabled(False)
+        self._busy(True)
+        shown = [0.0]
+
+        def progress(frac, text):
+            # A 6 GB file takes ~20 s: say how far along, a few times a second.
+            now = time.monotonic()
+            if now - shown[0] > 0.25:
+                shown[0] = now
+                self.dcr_text.setPlainText(
+                    f"Reading {path.name}\n{text}   ({100 * frac:.0f} %)")
+                QApplication.processEvents()
+            return False
+
+        try:
+            with h5py.File(path, "r") as f:
+                det, _judged = self._file_detector(f)
+                counts = measure_dcr(f, det, find_measurement_metadata(path),
+                                     progress)
+        except Exception:
+            self.dcr_text.setPlainText(traceback.format_exc())
+            return
+        finally:
+            self._busy(False)
+            self.b_dcr.setEnabled(True)
+        self.dcr_counts, self.dcr_path = counts, path
+        self._render_dcr()
+
+    def _render_dcr(self, *_a):
+        """Redraw the DCR report from the cached counts: no file read."""
+        if self.dcr_counts is None:
+            return
+        lines, _maps = dcr_report(self.dcr_counts,
+                                  self.c_dcr_time.currentData(),
+                                  self.sp_dcr_k.value())
+        self.dcr_text.setPlainText("\n".join([str(self.dcr_path), ""] + lines))
+
+    def export_dcr_csv(self):
+        if self.dcr_counts is None:
+            QMessageBox.information(self, APP_NAME, "Compute DCR first.")
+            return
+        default = self.dcr_path.with_name(self.dcr_path.stem + "_dcr.csv")
+        p, _ = QFileDialog.getSaveFileName(
+            self, "Export DCR per pixel", str(default),
+            "CSV (*.csv);;All files (*)", "", self.DLG)
+        if not p:
+            return
+        try:
+            write_dcr_csv(p, self.dcr_counts, self.c_dcr_time.currentData(),
+                          self.sp_dcr_k.value(), h5_path=str(self.dcr_path))
+        except Exception as exc:
+            QMessageBox.critical(self, APP_NAME, f"Could not write the CSV:\n{exc}")
+            return
+        self.dcr_text.appendPlainText(f"\nwrote {p}")
+
+    def _draw_dcr(self, what, path, fig, ax, styled, np):
+        """The DCR plots, drawn from the cached counts of this file."""
+        c = self.dcr_counts
+        if c is None or self.dcr_path != path:
+            QMessageBox.information(self, APP_NAME,
+                                    "Compute DCR for this file first (DCR tab).")
+            return False
+        T, used, _note = pick_time(c, self.c_dcr_time.currentData())
+        if T is None:
+            QMessageBox.information(self, APP_NAME,
+                                    "No measurement time is available.")
+            return False
+        k = self.sp_dcr_k.value()
+        m = dcr_maps(c, T, k, np)
+        if what in ("dcr_map", "dcr_hist") and not c["n_hits"]:
+            QMessageBox.information(self, APP_NAME, "This file has no pixel hits.")
+            return False
+
+        if what == "dcr_map":
+            self._draw_hitmap(fig, ax, m["hit_rate"], styled, np, "Hz / pixel",
+                              f"DCR, pixels -- {fmt_rate(c['n_hits'] / T)} "
+                              f"over {T:.4g} s")
+        elif what == "dcr_cmap":
+            if not c["n_clusters"]:
+                QMessageBox.information(self, APP_NAME, "This file has no clusters.")
+                return False
+            self._draw_hitmap(fig, ax, m["cluster_rate"], styled, np,
+                              "clusters / s per pixel",
+                              f"DCR, clusters -- {fmt_rate(c['n_clusters'] / T)} "
+                              f"over {T:.4g} s")
+        elif what == "dcr_hist":
+            r = m["hit_rate"][~m["silent"]]
+            lo, hi = float(r.min()), float(r.max())
+            # Log bins: a noisy pixel can sit decades above the bulk.
+            bins = (np.logspace(np.log10(lo), np.log10(hi * 1.0001), 120)
+                    if hi > lo else 20)
+            ax.hist(r, bins=bins, histtype="step", **self._series_colour(styled))
+            med = m["median_hits"] / T
+            ax.axvline(med, ls="--", lw=1, color="0.5",
+                       label=f"median {fmt_rate(med)}")
+            ax.axvline(m["noisy_cut_hits"] / T, ls=":", lw=1, color="0.5",
+                       label=f"noisy cut, {k:g} x median")
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.legend()
+            ax.set(title=f"Per-pixel DCR -- {r.size:,} pixels that counted, "
+                         f"{int(m['silent'].sum()):,} silent not shown",
+                   xlabel=f"DCR (Hz)   [{TIME_SOURCES[used]}]",
+                   ylabel="Pixels (-)")
+        else:                                           # dcr_time
+            # Each frame over its own live time, so neither the gaps between
+            # frames nor the time base chosen above bend the curve.
+            # y: the median pixel's DCR in each frame (or time bin), over the
+            # pixels that counted in the whole run. Falls back to the mean
+            # pixel when the per-frame maps could not be kept.
+            live = c["frame_live_s"]
+            if live is not None and len(live) > 1:
+                x = c["frame_start_s"] + live / 2
+                dt = live
+                totals = (c["frame_hits"], c["frame_clusters"])
+                how = f"one point per frame ({len(live)})"
+            elif c["bin_edges_s"] is not None:
+                e = c["bin_edges_s"]
+                dt = np.diff(e)
+                x = (e[:-1] + e[1:]) / 2
+                totals = (c["bin_hits"], c["bin_clusters"])
+                how = f"{dt[0]:.3g} s bins"
+            else:
+                QMessageBox.information(self, APP_NAME,
+                                        "Too few hits to follow over time.")
+                return False
+            # Medians exist per frame or per bin; use them only if they match
+            # the slots chosen above.
+            meds = (c["med_hits"], c["med_clusters"])
+            if c["med_by_frame"] != (live is not None and len(live) > 1):
+                meds = (None, None)
+            counted = int((c["hit_map"] > 0).sum() if c["n_hits"]
+                          else (c["cluster_map"] > 0).sum())
+            panels = []
+            for label, med, tot in (("Pixel hits", meds[0], totals[0]),
+                                    ("Clusters", meds[1], totals[1])):
+                if tot is None or not np.any(tot):
+                    continue
+                if med is not None:
+                    panels.append((label, "median", med / dt))
+                else:
+                    panels.append((label, "mean", tot / max(counted, 1) / dt))
+            if not panels:
+                QMessageBox.information(self, APP_NAME,
+                                        "Nothing to follow over time.")
+                return False
+            ax.remove()
+            axes = fig.subplots(len(panels), 1, sharex=True, squeeze=False)[:, 0]
+            for a, (label, stat, r) in zip(axes, panels):
+                if not styled:
+                    self._theme_axes(a)
+                a.plot(x, r, marker=".", lw=1, **self._series_colour(styled))
+                a.set_ylabel(f"{label}, {stat}\npixel DCR (Hz)")
+                a.set_title(f"{label}: {stat} pixel {fmt_rate(float(np.median(r)))}"
+                            f" (median over time)", fontsize="medium")
+            note = ""
+            if any(stat == "mean" for _l, stat, _r in panels):
+                note = ("\nmedian unavailable (" + (c.get("med_why") or
+                        "frames differ") + "): mean per pixel shown")
+            sup = fig.suptitle(f"DCR vs time -- {how}, {counted:,} pixels "
+                               f"that counted{note}")
+            if not styled:
+                sup.set_color(self.pal["text"])
+            axes[-1].set_xlabel("Time (s)")
+        return True
+
     # -- plots ------------------------------------------------------------
 
     def plot(self, what):
@@ -2210,13 +2682,7 @@ class MainWindow(QMainWindow):
                 # No komorebi_mpl: paint the figure from the app palette so a
                 # dark theme still gets a dark plot.
                 fig.patch.set_facecolor(self.pal["surface_container_low"])
-                ax.set_facecolor(self.pal["surface"])
-                for side in ax.spines.values():
-                    side.set_color(self.pal["outline_variant"])
-                ax.tick_params(colors=self.pal["text_muted"])
-                ax.xaxis.label.set_color(self.pal["text"])
-                ax.yaxis.label.set_color(self.pal["text"])
-                ax.title.set_color(self.pal["text"])
+                self._theme_axes(ax)
             ok = self._draw_plot(what, path, fig, ax, styled, CAP, h5py, np)
             if ok:
                 fig.tight_layout()
@@ -2240,10 +2706,14 @@ class MainWindow(QMainWindow):
         Runs inside the style context so every artist -- including the
         colorbar, which is its own axes -- picks up the style rcParams.
         """
+        if what.startswith("dcr_"):
+            return self._draw_dcr(what, path, fig, ax, styled, np)
         try:
             with h5py.File(path, "r") as f:
                 if what == "tdc":
                     return self._draw_tdc(f, ax, styled, CAP, np)
+                if what == "timewalk":
+                    return self._draw_timewalk(f, ax, CAP, np)
                 # Only the pixel hitmap comes from PixelHits; everything else
                 # is a cluster-level quantity and reads Clusters.
                 if what == "hitmap":
@@ -2370,6 +2840,46 @@ class MainWindow(QMainWindow):
         ax.set(title=title, xlabel="t - t(TDC)  (us)", ylabel="Counts (-)",
                yscale="log")
         return True
+
+    def _draw_timewalk(self, f, ax, CAP, np):
+        """Timewalk (mean delay) and jitter (sigma) against hit ToT.
+
+        The stored /TimewalkCurve when its ctot cut matches the box, else
+        measured now from the first CAP hits -- so the cut can be tried out
+        before anything is written.
+        """
+        cut = self.sp_tw_cut_i.value()
+        stored = (TW_CURVE in f and
+                  float(f[TW_CURVE].attrs.get("ctot_cut_ns", -1)) == cut)
+        if stored:
+            curve = f[TW_CURVE][:]
+            used = int(f[TW_CURVE].attrs.get("hits_used", 0))
+            src = "stored in the file"
+        else:
+            det, _judged = self._file_detector(f)
+            try:
+                curve, used = measure_timewalk(f, det, cut, CAP, np)
+            except ValueError as exc:
+                QMessageBox.information(self, APP_NAME, str(exc))
+                return False
+            src = "measured now, not stored"
+        ax.plot(curve["tot_ns"], curve["delay_ns"], ".-", label="Timewalk (mean delay)")
+        ax.plot(curve["tot_ns"], curve["sigma_ns"], ".-", label="Jitter (sigma)")
+        ax.set_yscale("log")
+        ax.set(title=f"Timewalk, ctot cut {cut} ns -- {used:,} hits\n({src})",
+               xlabel="Hit ToT (ns)", ylabel="Time (ns)")
+        ax.legend()
+        return True
+
+    def _theme_axes(self, ax):
+        """App-palette colours for one axes, when no plot style is loaded."""
+        ax.set_facecolor(self.pal["surface"])
+        for side in ax.spines.values():
+            side.set_color(self.pal["outline_variant"])
+        ax.tick_params(colors=self.pal["text_muted"])
+        ax.xaxis.label.set_color(self.pal["text"])
+        ax.yaxis.label.set_color(self.pal["text"])
+        ax.title.set_color(self.pal["text"])
 
     def _series_colour(self, styled):
         """Let the style pick the series colour; override only without one."""

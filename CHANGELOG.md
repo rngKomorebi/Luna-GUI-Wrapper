@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 18-11-2026
+
+### Added
+
+- Dark count rate on the Inspect HDF5 tab. The panel under the plot buttons
+  is now two pages, **Summary** and **DCR**. **Compute DCR** reads every pixel
+  hit and cluster once and reports the rate per pixel, per cluster and per
+  area, silent and noisy pixels (more than k x the median, k = 10 by
+  default), and "clean" rates without them, and the rate frame by frame.
+  Changing the time base or k redraws without reading the file again.
+- Four time bases, all listed: live time from the ToA gaps between frames
+  (default, no metadata needed), frames x exposure and wall clock from
+  `measurement_metadata.json`, and the first-to-last ToA span.
+- DCR plots: maps for pixels and clusters, a per-pixel DCR histogram, and the
+  rate vs time, showing the median pixel's DCR in Hz frame by frame for hits
+  and clusters. The median is interpolated within the middle count, so it
+  does not step in whole counts. **Export CSV...** writes one row per pixel.
+- Qt-free `functions/dcr.py`, a Help section, and docs/dcr.md.
+
+## [0.4.0] - 18-11-2026
+
+### Added
+
+- Timewalk correction without a TDC, for Timepix3 and Timepix4. The curve is
+  measured from each file's own clusters: each hit's ToA relative to its
+  cluster's largest-ToT pixel, peak per 25 ns ToT bin, built from the first
+  50 M hits in ~10 s. The corrected times are added as the last column of
+  the tables: `Clusters/ctoa_tw`, plus optionally `PixelHits/toa_tw`. The
+  curve is stored as `/TimewalkCurve`. Adding a column rewrites the file once,
+  via a temporary copy that replaces it only when complete. Later runs
+  update the column in place.
+- Advanced tab: **Timewalk-correct each output .hdf5**, with a ctot cut
+  (default 1000 ns) and **also every pixel hit**, run after each file of a
+  batch.
+- Inspect HDF5: **Add timewalk columns to this file**, and a **Timewalk
+  curve** plot of delay and jitter against ToT. The plot can try a ctot cut
+  without writing anything. The summary lists the stored curve and columns.
+- `add_timewalk_columns()`, `read_with_timewalk()` and
+  `read_timewalk_curve()` in the Qt-free API. New docs page
+  [Timewalk correction](docs/timewalk.md) and Help section.
+
+### Changed
+
+- Process tab: a light-green **Wrapper options (N)** button beside
+  **Advanced flags**, shown while TDC columns or the timewalk correction are
+  on. These no longer count towards **Advanced flags**, which now lists only
+  what changes the Luna command or the output placement.
+- Advanced tab: the *After processing* box is now **Wrapper options (run by
+  this GUI after Luna, not Luna flags)**. On Timepix4 it hides only the TDC
+  row instead of the whole box.
+
 ## [0.3.0] - 16-11-2026
 
 ### Added
