@@ -30,8 +30,8 @@ TPX4_ONLY = ("tpx4",)
 class Flag:
     flag: str           # as passed, e.g. "--eps-t"
     key: str            # settings key; a switch_choice also stores key + "_on"
-    kind: str           # number | fraction | int | duration | path | choice
-                        # | switch | switch_choice
+    kind: str           # number | fraction | int | posint | duration | path
+                        # | choice | switch | switch_choice
     default: str        # the converter's own default, as its --help prints it
     note: str           # one line shown beside the control
     tip: str = ""       # the longer story, as a tooltip
@@ -50,6 +50,7 @@ class Flag:
 DURATION_UNITS = ("s", "ms", "us", "ns", "ps", "fs")
 _DURATION = re.compile(r"^\d+(\.\d+)?(" + "|".join(DURATION_UNITS) + r")$")
 _INT = re.compile(r"^\d+$")
+POSINT = re.compile(r"^[1-9]\d*$")   # 1, 2, ...: no 0, no sign, no decimals
 _NUMBER = re.compile(r"^\d+(\.\d+)?$")
 
 FLAG_GROUPS = [
@@ -87,10 +88,11 @@ FLAG_GROUPS = [
     ("Clustering", [
         # eps-s / eps-t: this GUI passes its own defaults, which cluster
         # better than Luna's 1 px / 100 ns, whenever the field is left empty.
-        Flag("--eps-s", "eps_s", "number", "1",
-             "largest gap between hits of one cluster, in pixels",
-             "Left empty, this GUI passes 2.5 (Luna's own default is 1).",
-             gui_default="2.5"),
+        Flag("--eps-s", "eps_s", "posint", "1",
+             "largest gap between hits of one cluster, in whole pixels",
+             "A positive whole number of pixels: 1, 2, 3, ...\n"
+             "Left empty, this GUI passes 2 (Luna's own default is 1).",
+             gui_default="2"),
         Flag("--eps-t", "eps_t", "duration", "100ns",
              "largest time gap between hits of one cluster, with a unit",
              "Write the unit with the number, e.g. 200ns or 1.5us. "
@@ -210,7 +212,7 @@ def flag_problems(values: dict, detector="tpx3") -> list[str]:
     """Values the converter would reject, worded for a message box."""
     problems = []
     for f in flags_for(detector):
-        if f.kind not in ("number", "fraction", "int", "duration"):
+        if f.kind not in ("number", "fraction", "int", "posint", "duration"):
             continue
         val = str(values.get(f.key, "")).strip()
         if not val:
@@ -220,6 +222,9 @@ def flag_problems(values: dict, detector="tpx3") -> list[str]:
                             f"{f.shown_default} -- got '{val}'.")
         elif f.kind == "int" and not _INT.match(val):
             problems.append(f"{f.flag} needs a whole number -- got '{val}'.")
+        elif f.kind == "posint" and not POSINT.match(val):
+            problems.append(f"{f.flag} needs a whole number of at least 1 "
+                            f"-- got '{val}'.")
         elif f.kind == "number" and not _NUMBER.match(val):
             problems.append(f"{f.flag} needs a number -- got '{val}'.")
         elif f.kind == "fraction" and not (_NUMBER.match(val) and float(val) < 1):

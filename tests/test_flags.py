@@ -5,7 +5,7 @@ from luna_gui_wrapper.functions.flags import (FLAGS, flag_args, flag_bits,
 
 
 # What an all-empty Advanced tab passes: only the flags with a GUI default.
-GUI_DEFAULTS = ["--eps-s", "2.5", "--eps-t", "300ns"]
+GUI_DEFAULTS = ["--eps-s", "2", "--eps-t", "300ns"]
 
 
 def test_unset_flags_pass_only_gui_defaults():
@@ -17,14 +17,14 @@ def test_unset_flags_pass_only_gui_defaults():
 def test_a_typed_value_beats_the_gui_default():
     assert flag_args({"eps_s": "1", "eps_t": "100ns"}) == ["--eps-s", "1",
                                                           "--eps-t", "100ns"]
-    assert flag_args({"eps_s": " ", "eps_t": "50 ns"}) == ["--eps-s", "2.5",
+    assert flag_args({"eps_s": " ", "eps_t": "50 ns"}) == ["--eps-s", "2",
                                                           "--eps-t", "50ns"]
 
 
 def test_values_switches_and_choices():
     args = flag_args({"eps_t": "200 ns", "layout": "quad", "raw_only": True,
                       "disable_clustering": False, "log_level": ""})
-    assert args == ["--layout", "quad", "--eps-s", "2.5", "--eps-t", "200ns",
+    assert args == ["--layout", "quad", "--eps-s", "2", "--eps-t", "200ns",
                     "--raw-only"]
 
 
@@ -43,20 +43,29 @@ def test_paths_are_translated():
 
 def test_problems():
     assert flag_problems({"eps_t": "100ns", "time_bin_interval": "0.495s",
-                          "eps_s": "1.5", "num_time_bins": "3"}) == []
+                          "eps_s": "3", "num_time_bins": "3"}) == []
     bad = flag_problems({"eps_t": "100", "time_bin_interval": "500 parsecs",
                          "num_time_bins": "3.5", "eps_s": "one"})
     assert len(bad) == 4
     assert any(p.startswith("--eps-t needs a number with a unit") for p in bad)
 
 
+def test_eps_s_takes_positive_whole_numbers_only():
+    assert flag_problems({"eps_s": "1"}) == []
+    assert flag_problems({"eps_s": "12"}) == []
+    for bad in ("0", "2.5", "-1", "+2", "1e1", "two"):
+        problems = flag_problems({"eps_s": bad})
+        assert len(problems) == 1, bad
+        assert problems[0].startswith("--eps-s needs a whole number of at least 1")
+
+
 def test_only_the_detectors_flags_are_passed():
     vals = {"layout": "quad", "input_format": "nikhef", "eps_t": "200ns"}
     assert flag_args(vals, detector="tpx3") == ["--layout", "quad",
-                                                "--eps-s", "2.5",
+                                                "--eps-s", "2",
                                                 "--eps-t", "200ns"]
     assert flag_args(vals, detector="tpx4") == ["--input-format", "nikhef",
-                                                "--eps-s", "2.5",
+                                                "--eps-s", "2",
                                                 "--eps-t", "200ns"]
 
 

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 22-11-2026
+
+### Changed
+
+- `--eps-s` defaults to **2** in this GUI instead of 2.5 (Luna's own default
+  is 1), since Luna's `--eps-s` is a whole number of pixels.
+- The `--eps-s` field takes positive whole numbers only (1, 2, 3, ...):
+  anything else cannot be typed in, and a run refuses a value like `0` or
+  `2.5` before it starts. A saved value that is not a positive whole number
+  (e.g. `2.5`) is dropped and the default used instead.
+
 ## [0.6.1] - 22-11-2026
 
 ### Added
