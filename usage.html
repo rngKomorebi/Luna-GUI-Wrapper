@@ -1,0 +1,455 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usage &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Inspect HDF5" href="inspect.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#first-run">First run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#worked-examples">Worked examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#process-a-whole-campaign-folder">1. Process a whole campaign folder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#many-folders-at-once">2. Many folders at once</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#keep-up-with-a-live-campaign-rescan">3. Keep up with a live campaign: Rescan</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#collect-the-outputs-somewhere-else">4. Collect the outputs somewhere else</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-same-flags-for-the-whole-batch">5. The same flags for the whole batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#redo-some-files-not-all">6. Redo some files, not all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#build-the-batch-on-windows-run-it-on-a-linux-machine">7. Build the batch on Windows, run it on a Linux machine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tdc-columns-on-every-output">8. TDC columns on every output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#timewalk-corrected-times-on-every-output">9. Timewalk-corrected times on every output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#timepix4">10. Timepix4</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#name-templates">Name templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/usage.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="usage">
+<h1>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h1>
+<section id="first-run">
+<h2>First run<a class="headerlink" href="#first-run" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>On the <strong>Process</strong> tab, pick the <strong>Detector</strong>: Timepix3 or Timepix4.</p></li>
+<li><p>Open the <strong>Advanced</strong> tab (or press <em>Set up Luna…</em> on the Process tab) and
+browse to your Luna folder: the install root, its <code class="docutils literal notranslate"><span class="pre">bin</span></code> folder, or, for
+ASI’s Timepix4 archive, the outer folder that holds a same-named folder.
+It is remembered per detector, so this is a one-time step.</p></li>
+<li><p><strong>Check install</strong> proves the backend works and prints the authoritative flag
+list for the <em>extra arguments</em> box.</p></li>
+<li><p>Back on <strong>Process</strong>, the status line reads <em>Ready</em> and the setup button
+disappears. From then on you never need the Advanced tab again.</p></li>
+</ol>
+<p>Everything on the Advanced tab is optional; this is what it looks like once
+Luna is configured:</p>
+<p><img alt="The Advanced tab with Luna configured" src="_images/advanced-tab.png" /></p>
+</section>
+<section id="worked-examples">
+<h2>Worked examples<a class="headerlink" href="#worked-examples" title="Link to this heading"></a></h2>
+<p>They all use this campaign layout, which is the one ASI’s acquisition software
+writes: one folder per measurement, with the metadata beside a <code class="docutils literal notranslate"><span class="pre">raw/</span></code> folder
+that holds the raw file. The examples use Timepix3; Timepix4 works the same
+way with <code class="docutils literal notranslate"><span class="pre">.tpx4</span></code> (see <a class="reference internal" href="#9-timepix4"><span class="xref myst">example 9</span></a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">D</span><span class="p">:</span>\<span class="n">tpx3cam</span> <span class="n">data</span>\
+  <span class="n">data_DCR_07</span><span class="mf">.08.2026</span>\
+    <span class="n">Measurement_Aug_07_2026_12h52m45s</span>\
+      <span class="n">measurement_metadata</span><span class="o">.</span><span class="n">json</span>
+      <span class="n">comment</span><span class="o">.</span><span class="n">txt</span>
+      <span class="n">raw</span>\
+        <span class="n">fCqk_000000</span><span class="o">.</span><span class="n">tpx3</span>
+    <span class="n">Measurement_Aug_07_2026_13h10m02s</span>\
+      <span class="o">...</span>  <span class="n">raw</span>\<span class="n">fDK5_000000</span><span class="o">.</span><span class="n">tpx3</span>
+    <span class="n">Measurement_Aug_07_2026_14h31m40s</span>\
+      <span class="o">...</span>  <span class="n">raw</span>\<span class="n">gA7p_000000</span><span class="o">.</span><span class="n">tpx3</span>
+  <span class="n">data_TDC_08</span><span class="mf">.08.2026</span>\
+    <span class="n">Measurement_Aug_08_2026_09h05m11s</span>\
+      <span class="o">...</span>  <span class="n">raw</span>\<span class="n">hQ2m_000000</span><span class="o">.</span><span class="n">tpx3</span>
+</pre></div>
+</div>
+<section id="process-a-whole-campaign-folder">
+<span id="1-process-a-whole-campaign-folder"></span><h3>1. Process a whole campaign folder<a class="headerlink" href="#process-a-whole-campaign-folder" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Process</strong> tab → <strong>Add folders…</strong> → <strong>Browse…</strong> →
+<code class="docutils literal notranslate"><span class="pre">D:\tpx3cam</span> <span class="pre">data\data_DCR_07.08.2026</span></code>.</p></li>
+<li><p>Leave <strong>Search subfolders</strong> ticked (it is what reaches the <code class="docutils literal notranslate"><span class="pre">.tpx3</span></code> inside
+each <code class="docutils literal notranslate"><span class="pre">raw\</span></code>) → <strong>Add to batch</strong>.</p></li>
+<li><p><strong>Run queue</strong>.</p></li>
+</ol>
+<p>The GUI walks the whole tree, queues every <code class="docutils literal notranslate"><span class="pre">.tpx3</span></code> it finds (<code class="docutils literal notranslate"><span class="pre">.TPX3</span></code> too), and
+logs what it found:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Scanned</span> <span class="mi">1</span> <span class="n">folder</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="mi">3</span> <span class="n">file</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">queued</span><span class="p">,</span> <span class="mi">3</span> <span class="n">new</span>
+</pre></div>
+</div>
+<p><strong>Files found</strong> lists each input with the output name it will get. The files
+run one at a time, with the converter’s own output streamed into the log. With
+the default settings each <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> is written next to its raw file, named after
+the measurement rather than the ASI stem:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Measurement_Aug_07_2026_12h52m45s</span>\<span class="n">raw</span>\
+  <span class="n">fCqk_000000</span><span class="o">.</span><span class="n">tpx3</span>
+  <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">07_12</span><span class="o">-</span><span class="mi">52</span><span class="o">-</span><span class="mi">45</span><span class="n">_DCR</span><span class="o">-</span><span class="mi">0</span><span class="n">V</span><span class="o">-</span><span class="n">gain_fCqk_000000</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
+<p>The date, time and comment come from <code class="docutils literal notranslate"><span class="pre">measurement_metadata.json</span></code>. See
+<a class="reference internal" href="#name-templates">Name templates</a> for the other fields you can use.</p>
+</section>
+<section id="many-folders-at-once">
+<span id="2-many-folders-at-once"></span><h3>2. Many folders at once<a class="headerlink" href="#many-folders-at-once" title="Link to this heading"></a></h3>
+<p>In the same <strong>Add folders…</strong> dialog, click <strong>Browse…</strong> repeatedly, or paste
+paths into the box, one per line. Explorer’s <em>Copy as path</em>, quotes and all,
+pastes as-is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">"D:</span><span class="se">\t</span><span class="s2">px3cam data\data_DCR_07.08.2026"</span>
+<span class="s2">"D:</span><span class="se">\t</span><span class="s2">px3cam data\data_TDC_08.08.2026"</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Scanned</span> <span class="mi">2</span> <span class="n">folder</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="mi">4</span> <span class="n">file</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">queued</span><span class="p">,</span> <span class="mi">4</span> <span class="n">new</span>
+</pre></div>
+</div>
+<p><strong>Folders to process</strong> shows each folder with its raw-file count. The list is
+remembered between sessions, so the next time you open the GUI the batch is
+already there. A folder added twice, or a file reachable through two folders,
+is queued only once. <strong>Clear</strong> empties the folder list and the queue.</p>
+<p>On Windows, <strong>Browse…</strong> is Explorer’s own folder picker, so Alt+D, pasting
+into its address bar and Quick Access all work. You can also drag folders
+from Explorer into the paste box.</p>
+</section>
+<section id="keep-up-with-a-live-campaign-rescan">
+<span id="3-keep-up-with-a-live-campaign-rescan"></span><h3>3. Keep up with a live campaign: Rescan<a class="headerlink" href="#keep-up-with-a-live-campaign-rescan" title="Link to this heading"></a></h3>
+<p>A measurement that is still acquiring has no <code class="docutils literal notranslate"><span class="pre">measurement_metadata.json</span></code> yet,
+so it can only be named after its ASI stem. Suppose one appears mid-campaign:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Scanned</span> <span class="mi">2</span> <span class="n">folder</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="mi">5</span> <span class="n">file</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">queued</span><span class="p">,</span> <span class="mi">1</span> <span class="n">new</span>
+    <span class="o">...</span>\<span class="n">Measurement_Aug_08_2026_09h20m00s</span>\<span class="n">raw</span>\<span class="n">hZ9x_000000</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
+<p>Once it finishes, press <strong>Rescan</strong>. Rescan is a full refresh: it picks up new
+files, drops queued rows whose input has since disappeared, and re-reads the
+metadata for every row:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Scanned</span> <span class="mi">2</span> <span class="n">folder</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="mi">5</span> <span class="n">file</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">queued</span><span class="p">,</span> <span class="mi">1</span> <span class="n">metadata</span> <span class="n">refresh</span><span class="p">(</span><span class="n">es</span><span class="p">)</span>
+    <span class="o">...</span>\<span class="n">Measurement_Aug_08_2026_09h20m00s</span>\<span class="n">raw</span>\<span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">08_09</span><span class="o">-</span><span class="mi">20</span><span class="o">-</span><span class="mi">00</span><span class="n">_laser</span><span class="o">-</span><span class="mi">405</span><span class="n">nm</span><span class="o">-</span><span class="n">TDC_hZ9x_000000</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
+<p>Then <strong>Run queue</strong> again. Because <strong>Skip files whose output already exists</strong> is
+on by default, the files you already processed are marked
+<code class="docutils literal notranslate"><span class="pre">skipped</span> <span class="pre">-</span> <span class="pre">output</span> <span class="pre">exists</span></code> and only the new one runs. <em>Rescan, Run, repeat</em> is
+the whole routine for a running campaign. Only run a measurement once it has
+finished, so the converter never reads a half-written file.</p>
+<p>Rows that are <em>running</em> are never touched by a rescan, because their output
+path is already on the command line. Rows that are <em>done</em> or <em>failed</em> are
+records of something that already happened, so a rescan never deletes them.</p>
+</section>
+<section id="collect-the-outputs-somewhere-else">
+<span id="4-collect-the-outputs-somewhere-else"></span><h3>4. Collect the outputs somewhere else<a class="headerlink" href="#collect-the-outputs-somewhere-else" title="Link to this heading"></a></h3>
+<p>By default the outputs stay beside the raw data. The <strong>Advanced</strong> tab →
+<strong>Output</strong> offers two alternatives. Both need an output folder, here
+<code class="docutils literal notranslate"><span class="pre">D:\processed</span></code>.</p>
+<p><strong>Output folder (flat)</strong> puts every <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> in that one folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">D</span><span class="p">:</span>\<span class="n">processed</span>\
+  <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">07_12</span><span class="o">-</span><span class="mi">52</span><span class="o">-</span><span class="mi">45</span><span class="n">_DCR</span><span class="o">-</span><span class="mi">0</span><span class="n">V</span><span class="o">-</span><span class="n">gain_fCqk_000000</span><span class="o">.</span><span class="n">hdf5</span>
+  <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">07_13</span><span class="o">-</span><span class="mi">10</span><span class="o">-</span><span class="mi">02</span><span class="n">_DCR</span><span class="o">-</span><span class="mi">0</span><span class="n">V</span><span class="o">-</span><span class="n">gain_fDK5_000000</span><span class="o">.</span><span class="n">hdf5</span>
+  <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">07_14</span><span class="o">-</span><span class="mi">31</span><span class="o">-</span><span class="mi">40</span><span class="n">_DCR</span><span class="o">-</span><span class="mi">50</span><span class="n">V_gA7p_000000</span><span class="o">.</span><span class="n">hdf5</span>
+  <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">08_09</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">11</span><span class="n">_laser</span><span class="o">-</span><span class="mi">405</span><span class="n">nm</span><span class="o">-</span><span class="n">TDC_hQ2m_000000</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
+<p><strong>Output folder (mirror tree)</strong> rebuilds the campaign structure under it,
+dropping the <code class="docutils literal notranslate"><span class="pre">raw\</span></code> level, which adds nothing once the data is processed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">D</span><span class="p">:</span>\<span class="n">processed</span>\
+  <span class="n">data_DCR_07</span><span class="mf">.08.2026</span>\
+    <span class="n">Measurement_Aug_07_2026_12h52m45s</span>\
+      <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">07_12</span><span class="o">-</span><span class="mi">52</span><span class="o">-</span><span class="mi">45</span><span class="n">_DCR</span><span class="o">-</span><span class="mi">0</span><span class="n">V</span><span class="o">-</span><span class="n">gain_fCqk_000000</span><span class="o">.</span><span class="n">hdf5</span>
+    <span class="o">...</span>
+  <span class="n">data_TDC_08</span><span class="mf">.08.2026</span>\
+    <span class="n">Measurement_Aug_08_2026_09h05m11s</span>\
+      <span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">08_09</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">11</span><span class="n">_laser</span><span class="o">-</span><span class="mi">405</span><span class="n">nm</span><span class="o">-</span><span class="n">TDC_hQ2m_000000</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
+<p>Missing folders are created as needed. Your raw files are never moved,
+renamed or modified.</p>
+<p>If a template makes two inputs produce the same name, both rows are marked
+<code class="docutils literal notranslate"><span class="pre">CLASH</span></code> and skipped rather than one overwriting the other. With
+<code class="docutils literal notranslate"><span class="pre">{date}_{comment}</span></code> in flat mode, for example, <code class="docutils literal notranslate"><span class="pre">fCqk</span></code> and <code class="docutils literal notranslate"><span class="pre">fDK5</span></code> would both
+become <code class="docutils literal notranslate"><span class="pre">2026-08-07_DCR-0V-gain.hdf5</span></code>. Keep <code class="docutils literal notranslate"><span class="pre">{time}</span></code> or <code class="docutils literal notranslate"><span class="pre">{stem}</span></code> in the
+template to avoid this.</p>
+</section>
+<section id="the-same-flags-for-the-whole-batch">
+<span id="5-the-same-flags-for-the-whole-batch"></span><h3>5. The same flags for the whole batch<a class="headerlink" href="#the-same-flags-for-the-whole-batch" title="Link to this heading"></a></h3>
+<p>On <strong>Advanced</strong> → <strong>tpx3dump flags</strong>, set for example <code class="docutils literal notranslate"><span class="pre">--eps-t</span></code> to <code class="docutils literal notranslate"><span class="pre">200ns</span></code> and
+tick <code class="docutils literal notranslate"><span class="pre">--disable-clustering</span></code>. On the <strong>Process</strong> tab the <strong>Advanced flags</strong>
+button turns from grey to yellow and reads <strong>Advanced flags (2)</strong>, so a
+non-default run is never a surprise. Click it for the list, one setting per
+row:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">eps</span><span class="o">-</span><span class="n">t</span> <span class="mi">200</span><span class="n">ns</span>
+<span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">clustering</span>
+</pre></div>
+</div>
+<p><strong>Preview commands</strong> prints the exact command line of every queued file
+without running anything. On Windows it reads:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">wsl</span><span class="o">.</span><span class="n">exe</span> <span class="o">-</span><span class="n">e</span> <span class="o">/</span><span class="n">mnt</span><span class="o">/</span><span class="n">c</span><span class="o">/</span><span class="n">Luna</span><span class="o">/</span><span class="n">luna</span><span class="o">-</span><span class="n">tpx3</span><span class="o">-</span><span class="n">ubuntu</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">tpx3dump</span> <span class="n">process</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'/mnt/d/tpx3cam data/data_DCR_07.08.2026/Measurement_Aug_07_2026_12h52m45s/raw/fCqk_000000.tpx3'</span> <span class="o">-</span><span class="n">o</span> <span class="s1">'/mnt/d/tpx3cam data/data_DCR_07.08.2026/Measurement_Aug_07_2026_12h52m45s/raw/2026-08-07_12-52-45_DCR-0V-gain_fCqk_000000.hdf5'</span> <span class="o">--</span><span class="n">eps</span><span class="o">-</span><span class="n">t</span> <span class="mi">200</span><span class="n">ns</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">clustering</span>
+</pre></div>
+</div>
+<p>Every <code class="docutils literal notranslate"><span class="pre">process</span></code> option of the current converter has its own control, grouped
+as <em>Detector and timing</em>, <em>Clustering</em>, <em>Output file</em>, <em>Timewalk</em> and
+<em>Performance and logging</em>. Each has a one-line note beside it; hover it for
+the details and the converter’s default. A few worth knowing:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--eps-t</span></code> and <code class="docutils literal notranslate"><span class="pre">--time-bin-interval</span></code> take a unit: <code class="docutils literal notranslate"><span class="pre">200ns</span></code>, <code class="docutils literal notranslate"><span class="pre">0.5s</span></code>. A bare
+number is refused before anything runs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--layout</span></code> must match the detector: <code class="docutils literal notranslate"><span class="pre">single</span></code>, <code class="docutils literal notranslate"><span class="pre">quad</span></code> (2x2) or <code class="docutils literal notranslate"><span class="pre">octal</span></code> (2x4).</p></li>
+<li><p>Leaving <code class="docutils literal notranslate"><span class="pre">--tof-tdc-reference</span></code> unticked means no ToF at all, not a default edge.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--num-time-bins</span></code> and <code class="docutils literal notranslate"><span class="pre">--time-bin-interval</span></code> trade speed against memory; they
+do not change the output.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--raw-only</span></code> skips sorting and clustering; <code class="docutils literal notranslate"><span class="pre">--disable-clustering</span></code> still sorts.</p></li>
+<li><p>The Blosc compression algorithms need the <code class="docutils literal notranslate"><span class="pre">hdf5plugin</span></code> package for h5py, and
+so for the Inspect tab, to read the file. <code class="docutils literal notranslate"><span class="pre">Deflate</span></code> works anywhere.</p></li>
+</ul>
+<p><strong>extra arguments</strong> is passed verbatim after them, for anything a newer Luna
+adds. <strong>Check install</strong> prints <code class="docutils literal notranslate"><span class="pre">process</span> <span class="pre">--help</span></code>, the authoritative list for
+your Luna version.</p>
+</section>
+<section id="redo-some-files-not-all">
+<span id="6-redo-some-files-not-all"></span><h3>6. Redo some files, not all<a class="headerlink" href="#redo-some-files-not-all" title="Link to this heading"></a></h3>
+<p>When outputs already exist, <strong>Run queue</strong> skips them. To redo particular
+files, tick <strong>Overwrite</strong> on their rows in <strong>Files found</strong>. The checkbox in the
+column header ticks or clears every row whose output exists. Untick <strong>Skip
+files whose output already exists</strong> on the Advanced tab to overwrite
+everything; <strong>Advanced flags</strong> then lists <code class="docutils literal notranslate"><span class="pre">OVERWRITING</span> <span class="pre">existing</span> <span class="pre">output</span></code>.</p>
+<p><strong>Redo the failures.</strong> A file that fails gets a <code class="docutils literal notranslate"><span class="pre">FAILED</span></code> line in the log with
+its cause and what to change, and its row shows the cause too (hover it for
+the advice). The end of the run sums the failures up by cause. Once anything
+has failed, <strong>Rerun failed (N)</strong>, above the Overwrite column, turns yellow. It
+lists each cause with the fix and warns when a cause still holds with the
+current settings, for example output names still over 255 characters. It
+then ticks <strong>Overwrite</strong> where a failed run left a partial <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> and runs
+the failed files only; every other row is left alone.</p>
+<p>The log is kept whole for the session, however long the batch. <strong>Save
+log…</strong> writes it to a text file.</p>
+</section>
+<section id="build-the-batch-on-windows-run-it-on-a-linux-machine">
+<span id="7-build-the-batch-on-windows-run-it-on-a-linux-machine"></span><h3>7. Build the batch on Windows, run it on a Linux machine<a class="headerlink" href="#build-the-batch-on-windows-run-it-on-a-linux-machine" title="Link to this heading"></a></h3>
+<p>For a long campaign, you may prefer to run on a Linux workstation or server.
+Build the queue as usual, then <strong>Advanced</strong> → <strong>Export .sh</strong>. You get a
+self-contained script with your paths translated, your flags applied, and
+the input and output roots pulled out into variables to edit on the other
+machine:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env bash</span>
+<span class="c1"># Generated by Luna GUI Wrapper -- run this on the Linux machine.</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Put the Luna bin/ directory on PATH, or set TPX3DUMP below</span>
+<span class="c1">#    to the absolute path of the tpx3dump executable.</span>
+<span class="c1"># 2. Edit IN_ROOT / OUT_ROOT to match where the data lives there.</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+
+<span class="nv">TPX3DUMP</span><span class="o">=</span><span class="si">${</span><span class="nv">TPX3DUMP</span><span class="k">:-</span><span class="nv">tpx3dump</span><span class="si">}</span>
+<span class="nv">IN_ROOT</span><span class="o">=</span><span class="s1">'/mnt/d/tpx3cam data'</span>
+<span class="nv">OUT_ROOT</span><span class="o">=</span>/mnt/d/processed
+
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$OUT_ROOT</span><span class="s2">"</span>/data_DCR_07.08.2026/Measurement_Aug_07_2026_12h52m45s/2026-08-07_12-52-45_DCR-0V-gain_fCqk_000000.hdf5<span class="k">)</span><span class="s2">"</span>
+<span class="s2">"</span><span class="nv">$TPX3DUMP</span><span class="s2">"</span><span class="w"> </span>process<span class="w"> </span>-i<span class="w"> </span><span class="s2">"</span><span class="nv">$IN_ROOT</span><span class="s2">"</span>/data_DCR_07.08.2026/Measurement_Aug_07_2026_12h52m45s/raw/fCqk_000000.tpx3<span class="w"> </span>-o<span class="w"> </span><span class="s2">"</span><span class="nv">$OUT_ROOT</span><span class="s2">"</span>/data_DCR_07.08.2026/Measurement_Aug_07_2026_12h52m45s/2026-08-07_12-52-45_DCR-0V-gain_fCqk_000000.hdf5<span class="w"> </span>--eps-t<span class="w"> </span>200ns<span class="w"> </span>--disable-clustering
+...
+</pre></div>
+</div>
+<p>This works even where the converter cannot run, for example on a Windows PC
+without WSL.</p>
+</section>
+<section id="tdc-columns-on-every-output">
+<span id="8-tdc-columns-on-every-output"></span><h3>8. TDC columns on every output<a class="headerlink" href="#tdc-columns-on-every-output" title="Link to this heading"></a></h3>
+<p>Timepix3 only. <strong>Advanced</strong> → <strong>Wrapper options</strong> → tick <strong>Add TDC columns to
+each output .hdf5</strong> and pick the reference edge. After <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> finishes
+each file, the GUI tags every pixel hit and cluster with the TDC edge it
+follows, in the same batch. The row’s note then reads, for example,
+<code class="docutils literal notranslate"><span class="pre">412.0</span> <span class="pre">MB</span> <span class="pre">in</span> <span class="pre">38.2s,</span> <span class="pre">TDC</span> <span class="pre">TDC1Rising</span> <span class="pre">(1,204,733</span> <span class="pre">rows)</span></code>. See <a class="reference internal" href="tdc.html"><span class="std std-doc">TDC</span></a> for
+what is written and how to read it back.</p>
+</section>
+<section id="timewalk-corrected-times-on-every-output">
+<span id="9-timewalk-corrected-times-on-every-output"></span><h3>9. Timewalk-corrected times on every output<a class="headerlink" href="#timewalk-corrected-times-on-every-output" title="Link to this heading"></a></h3>
+<p><strong>Advanced</strong> → <strong>Wrapper options</strong> → tick <strong>Timewalk-correct each output
+.hdf5</strong>. After the converter finishes each file, the GUI measures the
+timewalk curve from that file’s own clusters and writes corrected cluster
+times as a last column of <code class="docutils literal notranslate"><span class="pre">Clusters</span></code> (<code class="docutils literal notranslate"><span class="pre">ctoa_tw</span></code>), plus the curve itself. No TDC is
+needed, and dark-count data works as well as a focused spot. Tick <strong>also
+every pixel hit</strong> for a corrected time per hit too. See
+<a class="reference internal" href="timewalk.html"><span class="std std-doc">Timewalk correction</span></a>.</p>
+</section>
+<section id="timepix4">
+<span id="10-timepix4"></span><h3>10. Timepix4<a class="headerlink" href="#timepix4" title="Link to this heading"></a></h3>
+<p>On the <strong>Process</strong> tab, <strong>Detector</strong> → <strong>Timepix4</strong>. Then, once: <strong>Advanced</strong>
+→ <strong>Luna installation</strong> → <strong>Browse…</strong> to your Timepix4 Luna, for example
+<code class="docutils literal notranslate"><span class="pre">C:\...\Luna\luna-tpx4-ubuntu-24.04-v0.4.4</span></code>. ASI’s archive unpacks into a
+folder holding a same-named folder; either works, as does its <code class="docutils literal notranslate"><span class="pre">bin</span></code>. From
+there it is the same routine: <strong>Add folders…</strong>, <strong>Run queue</strong>. A folder scan
+now queues <code class="docutils literal notranslate"><span class="pre">.tpx4</span></code> files, and each runs as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tpx4dump<span class="w"> </span>process<span class="w"> </span>-i<span class="w"> </span>NAME.tpx4<span class="w"> </span>-o<span class="w"> </span>NAME.hdf5
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Switching detector swaps the whole setup (Luna folder, batch folders), and
+switching back restores it. The switch is locked during a run.</p></li>
+<li><p>The Advanced tab shows only the flags the current converter accepts, and
+hides the TDC columns option on Timepix4. See
+<a class="reference internal" href="intro.html#timepix3-and-timepix4"><span class="std std-ref">Timepix3 and Timepix4</span></a> for the differences.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code> logs an <code class="docutils literal notranslate"><span class="pre">[ERROR]</span> <span class="pre">...</span> <span class="pre">Packet</span> <span class="pre">is</span> <span class="pre">ignored</span></code> line for every packet it
+drops: 212,706 of them for one 84 MB file. That is Luna’s output; the file
+is still written. The log shows the first 20 lines of each kind and counts
+the rest, ending the file with a line such as
+<code class="docutils literal notranslate"><span class="pre">(115,652</span> <span class="pre">more</span> <span class="pre">lines</span> <span class="pre">like</span> <span class="pre">this</span> <span class="pre">were</span> <span class="pre">not</span> <span class="pre">shown:</span> <span class="pre">...)</span></code>.</p></li>
+</ul>
+</section>
+</section>
+<section id="name-templates">
+<h2>Name templates<a class="headerlink" href="#name-templates" title="Link to this heading"></a></h2>
+<p>Default is <code class="docutils literal notranslate"><span class="pre">{date}_{time}_{comment}_{stem}</span></code>, built from
+<code class="docutils literal notranslate"><span class="pre">measurement_metadata.json</span></code> and <code class="docutils literal notranslate"><span class="pre">comment.txt</span></code> in the measurement folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">2026</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">07_12</span><span class="o">-</span><span class="mi">52</span><span class="o">-</span><span class="mi">45</span><span class="n">_DCR</span><span class="o">-</span><span class="mi">0</span><span class="n">V</span><span class="o">-</span><span class="n">gain_fCqk_000000</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
+<p>The time is in there because a campaign routinely puts many measurements in one
+day under the same comment: on 2026-08-07 alone, <code class="docutils literal notranslate"><span class="pre">fCqk_000000</span></code> and
+<code class="docutils literal notranslate"><span class="pre">fDK5_000000</span></code> are both <code class="docutils literal notranslate"><span class="pre">DCR-0V-gain</span></code>, and without <code class="docutils literal notranslate"><span class="pre">{time}</span></code> the only thing
+telling them apart is the ASI stem. <code class="docutils literal notranslate"><span class="pre">{time}</span></code> is written <code class="docutils literal notranslate"><span class="pre">12-52-45</span></code>, not
+<code class="docutils literal notranslate"><span class="pre">12:52:45</span></code>, because a colon is not legal in a Windows filename.</p>
+<p>Changing this default migrates an existing config <strong>only</strong> if its template is
+still one this program shipped as a default. A template you chose yourself is
+never overwritten.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Placeholder</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">{stem}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fCqk_000000</span></code></p></td>
+<td><p>raw filename</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">{measurement}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement_Aug_07_2026_12h52m45s</span></code></p></td>
+<td><p>folder</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">{campaign}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">data_DCR_07.08.2026</span></code></p></td>
+<td><p>folder</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">{date}</span></code> <code class="docutils literal notranslate"><span class="pre">{time}</span></code> <code class="docutils literal notranslate"><span class="pre">{datetime}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">2026-08-07</span></code>, <code class="docutils literal notranslate"><span class="pre">12-52-45</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">StartDateTime</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">{comment}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DCR-0V-gain</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CommentAtTimeOfMeasurement</span></code>, or <code class="docutils literal notranslate"><span class="pre">comment.txt</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Presets…</strong> beside the template field offers ready-made combinations.
+Placeholders with no value drop out and the separators collapse. If two inputs
+would produce the same output name, both rows are marked <code class="docutils literal notranslate"><span class="pre">CLASH</span></code> and skipped:
+a rename tool that silently overwrites half your batch is worse than none.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="inspect.html" class="btn btn-neutral float-right" title="Inspect HDF5" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

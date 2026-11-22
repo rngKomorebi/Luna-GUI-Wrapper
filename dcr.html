@@ -1,0 +1,266 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dark count rate &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Troubleshooting" href="troubleshooting.html" />
+    <link rel="prev" title="Timewalk correction" href="timewalk.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Dark count rate</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#time-base">Time base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-is-reported">What is reported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#plots-and-export">Plots and export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#from-python">From Python</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Dark count rate</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/dcr.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="dark-count-rate">
+<h1>Dark count rate<a class="headerlink" href="#dark-count-rate" title="Link to this heading"></a></h1>
+<p>The <strong>DCR</strong> page sits beside <strong>Summary</strong> at the bottom of the Inspect HDF5
+tab. Open a file and press <strong>Compute DCR</strong>. One pass over every pixel hit and
+every cluster counts them per pixel and per frame. That takes about 4 s for a
+1.7 GB file and 17 s for a 6 GB one, with progress shown on the page. After
+that, the time base and the noisy cut can be changed and the report redraws
+at once, without reading the file again.</p>
+<section id="time-base">
+<h2>Time base<a class="headerlink" href="#time-base" title="Link to this heading"></a></h2>
+<p>The only real choice in a rate is what the counts are divided by. All four
+time bases are computed and listed in the report; the one picked in <strong>Time
+base</strong> is used.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Time base</p></th>
+<th class="head"><p>From</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Frames, live time from ToA</strong> (default)</p></td>
+<td><p>the hits</p></td>
+<td><p>First to last hit, minus the dead gaps between frames. Needs no metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Frames x exposure</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measurement_metadata.json</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NumberOfFrames</span></code> x <code class="docutils literal notranslate"><span class="pre">ExposureTime</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ToA span</strong></p></td>
+<td><p>the hits</p></td>
+<td><p>First to last hit. Counts the gaps between frames as live.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Wall clock</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measurement_metadata.json</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">StartDateTime</span></code> to <code class="docutils literal notranslate"><span class="pre">StopDateTime</span></code>. Includes start-up and readout: an upper bound.</p></td>
+</tr>
+</tbody>
+</table>
+<p>For a 100-frame dark run with 0.495 s frames every 0.5 s these come out as
+49.4995 s, 49.5 s, 49.995 s and 51.02 s.</p>
+<p><strong>How the live time is found.</strong> Luna writes <code class="docutils literal notranslate"><span class="pre">PixelHits</span></code> sorted by ToA, so with
+N frames the N-1 widest gaps between consecutive hits are the dead time
+between frames. N is the number of entries in <code class="docutils literal notranslate"><span class="pre">ExposureTimeBoundaries</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">NumberOfFrames</span></code> from the metadata. The live time is the first-to-last span
+minus those gaps. The frame breaks are trusted only when the narrowest of them
+is at least 10x the next widest gap, so they stand clear of every pause
+inside a frame. In a 3.7 MHz dark run the frame gaps are 18,400x the mean hit
+spacing, while the widest pause inside a frame is 154x. With too few hits to
+tell a frame gap from an ordinary pause, this base is reported as
+unavailable.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ExposureTimeBoundaries</span></code> holds no times. It has one cumulative row index per
+frame, and these indices do not always match <code class="docutils literal notranslate"><span class="pre">PixelHits</span></code>. In one reference
+file with TDC data, the last boundary is 1,881,013 rows past the end of the
+table, exactly the number of <code class="docutils literal notranslate"><span class="pre">TDCEvents</span></code> rows, so the boundaries seem to count
+TDC packets as well. So only their count is used.</p>
+<p>The metadata is looked for in the folder of the <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> and the three above
+it. That finds it for an output written beside its raw file
+(<code class="docutils literal notranslate"><span class="pre">Measurement_.../raw/</span></code>), but usually not for one written to a separate
+output folder. When the chosen base is unavailable, the next available one
+is used and the report says why.</p>
+</section>
+<section id="what-is-reported">
+<h2>What is reported<a class="headerlink" href="#what-is-reported" title="Link to this heading"></a></h2>
+<p><strong>Pixels</strong> (<code class="docutils literal notranslate"><span class="pre">PixelHits</span></code>):</p>
+<ul class="simple">
+<li><p>total rate, mean and median per pixel, and per area (Hz/mm2 and Hz/cm2,
+55 um pixels, whole chip)</p></li>
+<li><p><strong>silent</strong> pixels, with no hit at all: masked or dead pixels, or Poisson
+zeros when the median is only a few hits (the report warns below 10)</p></li>
+<li><p><strong>noisy</strong> pixels, with more than k x the median hit count of the pixels that
+counted (k = 10 by default), and their share of all hits</p></li>
+<li><p>the hottest pixel</p></li>
+<li><p><strong>clean</strong> rate: the noisy pixels’ hits left out, and noisy and silent
+pixels left out of the area</p></li>
+</ul>
+<p><strong>Clusters</strong> (<code class="docutils literal notranslate"><span class="pre">Clusters</span></code>):</p>
+<ul class="simple">
+<li><p>total rate and rate per area</p></li>
+<li><p>clean rate, leaving out clusters whose centroid is on a noisy pixel</p></li>
+<li><p>mean hits per cluster and the share of single-pixel clusters</p></li>
+</ul>
+<p><strong>Per frame</strong>: the range and relative spread of the pixel and cluster rates
+across frames, each frame divided by its own live time.</p>
+</section>
+<section id="plots-and-export">
+<h2>Plots and export<a class="headerlink" href="#plots-and-export" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Button</p></th>
+<th class="head"><p>Shows</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>DCR map, pixels</strong></p></td>
+<td><p>Hz per pixel; runaway pixels kept off the colour scale, as for the hitmaps</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>DCR map, clusters</strong></p></td>
+<td><p>clusters per second, by centroid pixel</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Per-pixel DCR histogram</strong></p></td>
+<td><p>log-log, pixels that counted; median and noisy cut marked</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Rate vs time</strong></p></td>
+<td><p>the median pixel’s DCR in Hz per frame (or in 100 time bins for a single-frame file), hits and clusters in two panels</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The median per frame.</strong> The median is taken over the pixels that counted
+at least once in the whole run, so the same pixels are used in every frame.
+A pixel holds only a few tens of counts per frame (about 30 for 60 Hz in
+0.495 s), so a plain median moves in whole counts. That is a staircase of
+about 3 %, which would hide a drift of a few tenths of a percent. The
+plotted median is instead interpolated within the middle count: each
+integer v is treated as the interval [v - 0.5, v + 0.5), as for grouped
+data, and the result equals v when every count is v.</p>
+<p>The per-frame maps are built in the same pass as everything else. A new map
+starts at every ToA gap wider than 1000x the running mean hit spacing, and
+the pieces are merged into frames once the frame gaps are known. Above 32 M
+map cells (about 490 Timepix3 frames) they are skipped. When the medians
+are unavailable, the plot shows the mean per pixel and says why.</p>
+<p><strong>Export CSV…</strong> writes one row per pixel: <code class="docutils literal notranslate"><span class="pre">x,</span> <span class="pre">y,</span> <span class="pre">hits,</span> <span class="pre">hit_rate_hz,</span> <span class="pre">clusters,</span> <span class="pre">cluster_rate_hz,</span> <span class="pre">noisy,</span> <span class="pre">silent</span></code>, with the time base and the noisy
+cut in the header.</p>
+</section>
+<section id="from-python">
+<h2>From Python<a class="headerlink" href="#from-python" title="Link to this heading"></a></h2>
+<p>The calculation is Qt-free:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">luna_gui_wrapper.functions</span><span class="w"> </span><span class="kn">import</span> <span class="n">dcr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">luna_gui_wrapper.functions.detectors</span><span class="w"> </span><span class="kn">import</span> <span class="n">detect_from_file</span>
+
+<span class="n">path</span> <span class="o">=</span> <span class="s2">"run.hdf5"</span>
+<span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">dcr</span><span class="o">.</span><span class="n">measure_dcr</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">detect_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
+                             <span class="n">dcr</span><span class="o">.</span><span class="n">find_measurement_metadata</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+<span class="n">lines</span><span class="p">,</span> <span class="n">maps</span> <span class="o">=</span> <span class="n">dcr</span><span class="o">.</span><span class="n">dcr_report</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="s2">"frames_toa"</span><span class="p">,</span> <span class="n">noisy_k</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="timewalk.html" class="btn btn-neutral float-left" title="Timewalk correction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="troubleshooting.html" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

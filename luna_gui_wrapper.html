@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper package &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="luna_gui_wrapper.functions package" href="luna_gui_wrapper.functions.html" />
+    <link rel="prev" title="luna_gui_wrapper" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">luna_gui_wrapper</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">luna_gui_wrapper package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#luna_gui_wrapper.add_tdc_columns"><code class="docutils literal notranslate"><span class="pre">add_tdc_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#luna_gui_wrapper.add_timewalk_columns"><code class="docutils literal notranslate"><span class="pre">add_timewalk_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#luna_gui_wrapper.read_tdcs"><code class="docutils literal notranslate"><span class="pre">read_tdcs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#luna_gui_wrapper.read_timewalk_curve"><code class="docutils literal notranslate"><span class="pre">read_timewalk_curve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#luna_gui_wrapper.read_with_tdc"><code class="docutils literal notranslate"><span class="pre">read_with_tdc()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#luna_gui_wrapper.read_with_timewalk"><code class="docutils literal notranslate"><span class="pre">read_with_timewalk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">luna_gui_wrapper</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/luna_gui_wrapper.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-luna_gui_wrapper">
+<span id="luna-gui-wrapper-package"></span><h1>luna_gui_wrapper package<a class="headerlink" href="#module-luna_gui_wrapper" title="Link to this heading"></a></h1>
+<p>Luna GUI Wrapper – Qt 6 (PySide6) front end for ASI Luna’s tpx3dump
+(Timepix3) and tpx4dump (Timepix4).</p>
+<p>Browse to the data, let the GUI work out the names, and run the whole batch,
+instead of typing tpx3dump / tpx4dump process -i … -o … once per file.</p>
+<p>This program does not contain, modify, decompile or redistribute any part of
+Luna. It runs the <em>unmodified</em> Luna executables as subprocesses through their
+documented command line interface.</p>
+<p>The TDC helpers are Qt-free and importable on their own, e.g. from a notebook:</p>
+<blockquote>
+<div><p>import luna_gui_wrapper as g
+g.read_tdcs(“run.hdf5”)                     # the edges, deduplicated
+g.add_tdc_columns(“run.hdf5”, “TDC1Rising”)  # write the columns
+df = g.read_with_tdc(“run.hdf5”, “Clusters”) # frame with the TDC columns</p>
+</div></blockquote>
+<p>and so are the timewalk helpers (no TDC needed; measured from the clusters):</p>
+<blockquote>
+<div><p>g.add_timewalk_columns(“run.hdf5”, ctot_cut_ns=1000)  # curve + ctoa_tw
+df = g.read_with_timewalk(“run.hdf5”, “Clusters”)    # frame with ctoa_tw
+curve = g.read_timewalk_curve(“run.hdf5”)</p>
+</div></blockquote>
+<p>Importing the package does not import PySide6; only the GUI modules do.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.add_tdc_columns">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.</span></span><span class="sig-name descname"><span class="pre">add_tdc_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TDC1Rising'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/tdc.html#add_tdc_columns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.add_tdc_columns" title="Link to this definition"></a></dt>
+<dd><p>Write row-aligned TDC columns into an existing tpx3dump HDF5.</p>
+<p>Adds /PixelHitsTDC and /ClustersTDC beside the datasets they describe, each
+row i carrying the trigger that row i of the source belongs to. The
+originals are never rewritten: an HDF5 compound dataset has a fixed dtype,
+so a genuine extra field would mean recreating the whole thing, and these
+files are the only copy of the measurement. Readers join the two, which
+read_with_tdc() below does.</p>
+<p>Returns {dataset name: summary dict}, and raises on anything wrong.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.add_timewalk_columns">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.</span></span><span class="sig-name descname"><span class="pre">add_timewalk_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctot_cut_ns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_hits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_hits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#add_timewalk_columns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.add_timewalk_columns" title="Link to this definition"></a></dt>
+<dd><p>Measure this file’s timewalk curve and add corrected times to its tables.</p>
+<p>Clusters gets a last field <cite>ctoa_tw</cite>; with <cite>pixel_hits</cite>, PixelHits gets
+<cite>toa_tw</cite> too. Both are in the table’s own ticks. The curve is stored as
+/TimewalkCurve. A table that already carries the field from an earlier
+run is updated to the new curve, whatever <cite>pixel_hits</cite> says, so it never
+goes stale.</p>
+<p>Adding a field means rewriting the file once: it is written to a
+temporary file beside the original and swapped in only when complete,
+which needs free space for one more copy of the file. Later runs update
+the fields in place.</p>
+<p>Returns a summary dict, and raises on anything wrong.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.read_tdcs">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.</span></span><span class="sig-name descname"><span class="pre">read_tdcs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/tdc.html#read_tdcs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.read_tdcs" title="Link to this definition"></a></dt>
+<dd><p>The deduplicated TDC edges as a DataFrame, with decoded type and seconds.</p>
+<p>The direct equivalent of ASI’s read_tdcs.py.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.read_timewalk_curve">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.</span></span><span class="sig-name descname"><span class="pre">read_timewalk_curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#read_timewalk_curve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.read_timewalk_curve" title="Link to this definition"></a></dt>
+<dd><p>The stored /TimewalkCurve as a DataFrame; its attrs carry the settings.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.read_with_tdc">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.</span></span><span class="sig-name descname"><span class="pre">read_with_tdc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">which</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Clusters'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/tdc.html#read_with_tdc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.read_with_tdc" title="Link to this definition"></a></dt>
+<dd><p>One DataFrame of <cite>which</cite> with the TDC columns joined onto it.</p>
+<p>Uses the stored /…TDC dataset when add_tdc_columns() has written one;
+otherwise tags on the fly from /TDCEvents, so this also works on a file
+straight out of tpx3dump. Passing <cite>reference</cite> forces the on-the-fly path,
+which is how you look at a different edge without rewriting the file.
+<cite>tdc_type</cite> comes back as the readable name and <cite>tdc_dt_s</cite> as seconds, both
+derived here rather than stored.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.read_with_timewalk">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.</span></span><span class="sig-name descname"><span class="pre">read_with_timewalk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">which</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Clusters'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#read_with_timewalk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.read_with_timewalk" title="Link to this definition"></a></dt>
+<dd><p>One DataFrame of <cite>which</cite> with the corrected time and the correction.</p>
+<p><cite>ctoa_tw</cite> / <cite>toa_tw</cite> come straight from the table when the field is there;
+otherwise (PixelHits written without the per-hit option) they are computed
+from /TimewalkCurve, to the same values. <cite>timewalk_ns</cite> (what was
+subtracted) is added either way.</p>
+</dd></dl>
+
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="luna_gui_wrapper.functions.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html">luna_gui_wrapper.functions.backend module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.Backend"><code class="docutils literal notranslate"><span class="pre">Backend</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.detect_backend"><code class="docutils literal notranslate"><span class="pre">detect_backend()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.drive_letter"><code class="docutils literal notranslate"><span class="pre">drive_letter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.win_to_wsl"><code class="docutils literal notranslate"><span class="pre">win_to_wsl()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.wsl_distros"><code class="docutils literal notranslate"><span class="pre">wsl_distros()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.wsl_missing_paths"><code class="docutils literal notranslate"><span class="pre">wsl_missing_paths()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.wsl_mount_drive"><code class="docutils literal notranslate"><span class="pre">wsl_mount_drive()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.backend.html#luna_gui_wrapper.functions.backend.wsl_unmounted_drives"><code class="docutils literal notranslate"><span class="pre">wsl_unmounted_drives()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.common.html">luna_gui_wrapper.functions.common module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.common.html#luna_gui_wrapper.functions.common.dataset_row"><code class="docutils literal notranslate"><span class="pre">dataset_row()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.common.html#luna_gui_wrapper.functions.common.human_size"><code class="docutils literal notranslate"><span class="pre">human_size()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.config.html">luna_gui_wrapper.functions.config module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.config.html#luna_gui_wrapper.functions.config.load_config"><code class="docutils literal notranslate"><span class="pre">load_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.config.html#luna_gui_wrapper.functions.config.save_config"><code class="docutils literal notranslate"><span class="pre">save_config()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html">luna_gui_wrapper.functions.dcr module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.dcr_maps"><code class="docutils literal notranslate"><span class="pre">dcr_maps()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.dcr_report"><code class="docutils literal notranslate"><span class="pre">dcr_report()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.find_measurement_metadata"><code class="docutils literal notranslate"><span class="pre">find_measurement_metadata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.fmt_rate"><code class="docutils literal notranslate"><span class="pre">fmt_rate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.interp_median"><code class="docutils literal notranslate"><span class="pre">interp_median()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.measure_dcr"><code class="docutils literal notranslate"><span class="pre">measure_dcr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.metadata_times"><code class="docutils literal notranslate"><span class="pre">metadata_times()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.pick_time"><code class="docutils literal notranslate"><span class="pre">pick_time()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.write_dcr_csv"><code class="docutils literal notranslate"><span class="pre">write_dcr_csv()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.detectors.html">luna_gui_wrapper.functions.detectors module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.detectors.html#luna_gui_wrapper.functions.detectors.Detector"><code class="docutils literal notranslate"><span class="pre">Detector</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.detectors.html#luna_gui_wrapper.functions.detectors.detect_from_file"><code class="docutils literal notranslate"><span class="pre">detect_from_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.detectors.html#luna_gui_wrapper.functions.detectors.field_units"><code class="docutils literal notranslate"><span class="pre">field_units()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.failures.html">luna_gui_wrapper.functions.failures module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.Failure"><code class="docutils literal notranslate"><span class="pre">Failure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.diagnose"><code class="docutils literal notranslate"><span class="pre">diagnose()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.name_length"><code class="docutils literal notranslate"><span class="pre">name_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.still_fails"><code class="docutils literal notranslate"><span class="pre">still_fails()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html">luna_gui_wrapper.functions.flags module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html#luna_gui_wrapper.functions.flags.Flag"><code class="docutils literal notranslate"><span class="pre">Flag</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html#luna_gui_wrapper.functions.flags.duration_ns"><code class="docutils literal notranslate"><span class="pre">duration_ns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html#luna_gui_wrapper.functions.flags.flag_args"><code class="docutils literal notranslate"><span class="pre">flag_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html#luna_gui_wrapper.functions.flags.flag_bits"><code class="docutils literal notranslate"><span class="pre">flag_bits()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html#luna_gui_wrapper.functions.flags.flag_problems"><code class="docutils literal notranslate"><span class="pre">flag_problems()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.flags.html#luna_gui_wrapper.functions.flags.flags_for"><code class="docutils literal notranslate"><span class="pre">flags_for()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html">luna_gui_wrapper.functions.naming module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html#luna_gui_wrapper.functions.naming.Job"><code class="docutils literal notranslate"><span class="pre">Job</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html#luna_gui_wrapper.functions.naming.effective_template"><code class="docutils literal notranslate"><span class="pre">effective_template()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html#luna_gui_wrapper.functions.naming.measurement_context"><code class="docutils literal notranslate"><span class="pre">measurement_context()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html#luna_gui_wrapper.functions.naming.migrate_template"><code class="docutils literal notranslate"><span class="pre">migrate_template()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html#luna_gui_wrapper.functions.naming.render_name"><code class="docutils literal notranslate"><span class="pre">render_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.naming.html#luna_gui_wrapper.functions.naming.sanitize"><code class="docutils literal notranslate"><span class="pre">sanitize()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.plotting.html">luna_gui_wrapper.functions.plotting module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.next_dt_range_ns"><code class="docutils literal notranslate"><span class="pre">next_dt_range_ns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.next_dt_ticks"><code class="docutils literal notranslate"><span class="pre">next_dt_ticks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.onscreen_overrides"><code class="docutils literal notranslate"><span class="pre">onscreen_overrides()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.plot_style_context"><code class="docutils literal notranslate"><span class="pre">plot_style_context()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.tot_bin_edges"><code class="docutils literal notranslate"><span class="pre">tot_bin_edges()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html">luna_gui_wrapper.functions.tdc module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.add_tdc_columns"><code class="docutils literal notranslate"><span class="pre">add_tdc_columns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.describe_tdc_types"><code class="docutils literal notranslate"><span class="pre">describe_tdc_types()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.read_tdc_events"><code class="docutils literal notranslate"><span class="pre">read_tdc_events()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.read_tdcs"><code class="docutils literal notranslate"><span class="pre">read_tdcs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.read_with_tdc"><code class="docutils literal notranslate"><span class="pre">read_with_tdc()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.tag_times_with_tdc"><code class="docutils literal notranslate"><span class="pre">tag_times_with_tdc()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.tdc.html#luna_gui_wrapper.functions.tdc.tdc_reference_edges"><code class="docutils literal notranslate"><span class="pre">tdc_reference_edges()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html">luna_gui_wrapper.functions.timewalk module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.accumulate_timewalk"><code class="docutils literal notranslate"><span class="pre">accumulate_timewalk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.add_timewalk_columns"><code class="docutils literal notranslate"><span class="pre">add_timewalk_columns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.corrected_times"><code class="docutils literal notranslate"><span class="pre">corrected_times()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.curve_from_histogram"><code class="docutils literal notranslate"><span class="pre">curve_from_histogram()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.measure_timewalk"><code class="docutils literal notranslate"><span class="pre">measure_timewalk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.peak_of"><code class="docutils literal notranslate"><span class="pre">peak_of()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.read_timewalk_curve"><code class="docutils literal notranslate"><span class="pre">read_timewalk_curve()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.read_with_timewalk"><code class="docutils literal notranslate"><span class="pre">read_with_timewalk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.functions.timewalk.timewalk_delay_ns"><code class="docutils literal notranslate"><span class="pre">timewalk_delay_ns()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="luna_gui_wrapper" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="luna_gui_wrapper.functions.html" class="btn btn-neutral float-right" title="luna_gui_wrapper.functions package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,289 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.plotting &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.plotting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for luna_gui_wrapper.functions.plotting</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Plot constants and matplotlib styling for the Inspect tab.</span>
+
+<span class="sd">Qt-free. matplotlib and komorebi_mpl are optional and imported lazily, inside</span>
+<span class="sd">plot_style_context(), so importing this module costs nothing.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+
+<span class="c1"># ToT is quantised -- 25 ns steps on Timepix3 (the 40 MHz reference), 0.195 ns</span>
+<span class="c1"># on Timepix4 (see detectors.py) -- so histogram bin widths must be whole</span>
+<span class="c1"># multiples of the step or the bins beat against the level spacing.</span>
+
+<span class="c1"># Peak-pixel ToT gets one bin per step while that stays under this many bins:</span>
+<span class="c1"># Timepix3's 10-bit ToT is at most 1023 steps, so it always does. Timepix4's</span>
+<span class="c1"># fine step would need thousands, so it gets a whole number of steps instead.</span>
+<span class="n">TOT_MAX_BINS</span> <span class="o">=</span> <span class="mi">2000</span>
+
+<span class="c1"># Clusters/sum_tot reaches ~227 us, so the native 25 ns tick would be ~9000</span>
+<span class="c1"># bins. Snap to a whole number of ticks aiming for at most this many instead.</span>
+<span class="n">STOT_TARGET_BINS</span> <span class="o">=</span> <span class="mi">300</span>
+
+
+<div class="viewcode-block" id="tot_bin_edges">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.tot_bin_edges">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tot_bin_edges</span><span class="p">(</span><span class="n">hi</span><span class="p">,</span> <span class="n">lsb</span><span class="p">,</span> <span class="n">max_bins</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Histogram edges for ToT values in 0..hi, all in the same unit.</span>
+
+<span class="sd">    The bin width is the smallest whole number of ToT steps (`lsb`) that keeps</span>
+<span class="sd">    the count at or below max_bins. Edges run to hi + one step, so the</span>
+<span class="sd">    largest value lands inside the last bin instead of falling off the end.</span>
+<span class="sd">    -&gt; (edges, bin width)</span>
+<span class="sd">    """</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">hi</span> <span class="o">/</span> <span class="n">lsb</span> <span class="o">/</span> <span class="n">max_bins</span><span class="p">)))</span> <span class="k">if</span> <span class="n">hi</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">k</span> <span class="o">*</span> <span class="n">lsb</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">hi</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">step</span><span class="p">),</span> <span class="n">step</span></div>
+
+
+<span class="c1"># Time to the next cluster: 0..NEXT_DT_MAX_NS, or NEXT_DT_EPS_SPAN x eps_t when</span>
+<span class="c1"># that is longer, so the dip at eps_t always sits well inside the plot. ctoa</span>
+<span class="c1"># is quantised to the fine ToA step (1.5625 ns on Timepix3), so the bins are a</span>
+<span class="c1"># whole number of those steps, aiming for NEXT_DT_TARGET_BINS.</span>
+<span class="n">NEXT_DT_MAX_NS</span> <span class="o">=</span> <span class="mf">1000.0</span>
+<span class="n">NEXT_DT_EPS_SPAN</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">NEXT_DT_TARGET_BINS</span> <span class="o">=</span> <span class="mi">160</span>
+
+
+<div class="viewcode-block" id="next_dt_ticks">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.next_dt_ticks">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">next_dt_ticks</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Gap from each time to the next one, in the same ticks. Sorted first,</span>
+<span class="sd">    so a table not strictly in time order gives no negative gaps."""</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">times</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="next_dt_range_ns">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.next_dt_range_ns">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">next_dt_range_ns</span><span class="p">(</span><span class="n">eps_t_ns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Upper end of the time-to-next-cluster histogram, in ns."""</span>
+    <span class="k">if</span> <span class="n">eps_t_ns</span> <span class="ow">and</span> <span class="n">eps_t_ns</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">NEXT_DT_MAX_NS</span><span class="p">,</span> <span class="n">NEXT_DT_EPS_SPAN</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">eps_t_ns</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">NEXT_DT_MAX_NS</span></div>
+
+
+<span class="c1"># Hitmaps: when the hottest pixel holds more than HITMAP_CLIP_FACTOR times the</span>
+<span class="c1"># HITMAP_CLIP_PERCENTILE-th percentile of the pixels that were hit, the colour</span>
+<span class="c1"># scale stops at that percentile, so one hot or reference pixel cannot paint</span>
+<span class="c1"># the rest of the chip as zero. A hitmap without such outliers is unaffected.</span>
+<span class="n">HITMAP_CLIP_PERCENTILE</span> <span class="o">=</span> <span class="mf">99.9</span>
+<span class="n">HITMAP_CLIP_FACTOR</span> <span class="o">=</span> <span class="mf">5.0</span>
+
+<span class="c1"># Cluster size histogram: one bin per pixel over 0..40, which is where the</span>
+<span class="c1"># distribution lives -- anything above is counted and reported in the title</span>
+<span class="c1"># rather than dropped without saying so.</span>
+<span class="n">CSIZE_MAX</span> <span class="o">=</span> <span class="mi">40</span>
+<span class="n">CSIZE_BINS</span> <span class="o">=</span> <span class="mi">40</span>
+
+<span class="c1"># Plot styles from komorebi_mpl for the two Luna themes. Importing the package</span>
+<span class="c1"># registers them with matplotlib; if it is not installed, those themes' plots</span>
+<span class="c1"># are drawn from the theme's own colours like every other theme's (see</span>
+<span class="c1"># plot_style_context).</span>
+<span class="n">KOMOREBI_STYLES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"luna_dark"</span><span class="p">:</span> <span class="s2">"night_wave"</span><span class="p">,</span> <span class="s2">"luna_light"</span><span class="p">:</span> <span class="s2">"sci_pure"</span><span class="p">}</span>
+
+<span class="c1"># Window titles for the Inspect tab's plots, so several open at once stay</span>
+<span class="c1"># tellable apart from the taskbar.</span>
+<span class="n">PLOT_TITLES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"hitmap"</span><span class="p">:</span> <span class="s2">"Hitmap, pixels"</span><span class="p">,</span>
+    <span class="s2">"cmap"</span><span class="p">:</span> <span class="s2">"Hitmap, clusters"</span><span class="p">,</span>
+    <span class="s2">"tot"</span><span class="p">:</span> <span class="s2">"ToT, peak pixel"</span><span class="p">,</span>
+    <span class="s2">"stot"</span><span class="p">:</span> <span class="s2">"ToT, cluster total"</span><span class="p">,</span>
+    <span class="s2">"csize"</span><span class="p">:</span> <span class="s2">"Cluster size histogram"</span><span class="p">,</span>
+    <span class="s2">"tdc"</span><span class="p">:</span> <span class="s2">"Time since TDC edge"</span><span class="p">,</span>
+    <span class="s2">"timewalk"</span><span class="p">:</span> <span class="s2">"Timewalk curve"</span><span class="p">,</span>
+    <span class="s2">"next_dt"</span><span class="p">:</span> <span class="s2">"Time to next cluster"</span><span class="p">,</span>
+    <span class="s2">"dcr_map"</span><span class="p">:</span> <span class="s2">"DCR map, pixels"</span><span class="p">,</span>
+    <span class="s2">"dcr_cmap"</span><span class="p">:</span> <span class="s2">"DCR map, clusters"</span><span class="p">,</span>
+    <span class="s2">"dcr_hist"</span><span class="p">:</span> <span class="s2">"Per-pixel DCR histogram"</span><span class="p">,</span>
+    <span class="s2">"dcr_time"</span><span class="p">:</span> <span class="s2">"Rate vs time"</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># The komorebi styles are authored for a 16x10 in export figure: 30 pt text and</span>
+<span class="c1"># 10 pt tick marks. Dropped unscaled onto the ~6.6 in on-screen canvas that is</span>
+<span class="c1"># roughly 2.4x too large, so the point sizes get scaled by the figure-width</span>
+<span class="c1"># ratio. Colours, cyclers and colormaps are left exactly as the style set them.</span>
+<span class="n">PLOT_FIGSIZE</span> <span class="o">=</span> <span class="p">(</span><span class="mf">6.6</span><span class="p">,</span> <span class="mf">5.4</span><span class="p">)</span>
+<span class="n">_SCALED_RC</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"font.size"</span><span class="p">,</span> <span class="s2">"axes.titlesize"</span><span class="p">,</span> <span class="s2">"axes.labelsize"</span><span class="p">,</span> <span class="s2">"xtick.labelsize"</span><span class="p">,</span>
+              <span class="s2">"ytick.labelsize"</span><span class="p">,</span> <span class="s2">"legend.fontsize"</span><span class="p">,</span> <span class="s2">"legend.title_fontsize"</span><span class="p">,</span>
+              <span class="s2">"figure.titlesize"</span><span class="p">,</span> <span class="s2">"figure.labelsize"</span><span class="p">,</span>
+              <span class="s2">"xtick.major.size"</span><span class="p">,</span> <span class="s2">"ytick.major.size"</span><span class="p">,</span>
+              <span class="s2">"xtick.minor.size"</span><span class="p">,</span> <span class="s2">"ytick.minor.size"</span><span class="p">,</span> <span class="s2">"axes.titlepad"</span><span class="p">,</span>
+              <span class="s2">"axes.labelpad"</span><span class="p">,</span> <span class="s2">"xtick.major.pad"</span><span class="p">,</span> <span class="s2">"ytick.major.pad"</span><span class="p">)</span>
+<span class="n">_MIN_PT</span> <span class="o">=</span> <span class="mf">4.0</span>
+
+<span class="c1"># figure.frameon=False is right for an export onto a white page -- it leaves the</span>
+<span class="c1"># figure patch undrawn so the paper shows through. On screen the canvas behind</span>
+<span class="c1"># it is white, so a dark style renders dark text on white and is unreadable.</span>
+<span class="c1"># The colour is already correct; it just has to actually be painted.</span>
+<span class="c1"># axes.grid is off deliberately: these are dense hitmaps and long-tailed</span>
+<span class="c1"># histograms, where a grid competes with the data rather than helping read it.</span>
+<span class="n">_ONSCREEN_FIXED</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"figure.figsize"</span><span class="p">:</span> <span class="n">PLOT_FIGSIZE</span><span class="p">,</span> <span class="s2">"figure.frameon"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                   <span class="s2">"axes.grid"</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="onscreen_overrides">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.onscreen_overrides">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">onscreen_overrides</span><span class="p">(</span><span class="n">style_rc</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Point sizes from a big-figure style, rescaled for the on-screen figure."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">base_w</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">style_rc</span><span class="p">[</span><span class="s2">"figure.figsize"</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">base_w</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">PLOT_FIGSIZE</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">base_w</span>
+    <span class="k">if</span> <span class="mf">0.95</span> <span class="o">&lt;=</span> <span class="n">k</span> <span class="o">&lt;=</span> <span class="mf">1.05</span><span class="p">:</span>                  <span class="c1"># already sized for the screen</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">_ONSCREEN_FIXED</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">_ONSCREEN_FIXED</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">_SCALED_RC</span><span class="p">:</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">style_rc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">_MIN_PT</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="plot_style_context">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.plotting.html#luna_gui_wrapper.functions.plotting.plot_style_context">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_style_context</span><span class="p">(</span><span class="n">theme_key</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">rc_changes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A matplotlib style context for the current theme.</span>
+
+<span class="sd">    `rc` is the theme as rcParams (ThemeManager.mpl_rc) and `rc_changes` the</span>
+<span class="sd">    part of it the user changed in Preferences (ThemeManager.mpl_rc_changes).</span>
+<span class="sd">    A Luna theme is drawn with its komorebi_mpl style, rescaled for the</span>
+<span class="sd">    screen, with the user's changes laid on top; every other theme -- and a</span>
+<span class="sd">    Luna theme when komorebi_mpl is not installed -- with `rc` alone.</span>
+<span class="sd">    """</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">KOMOREBI_STYLES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">theme_key</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">komorebi_mpl</span>                      <span class="c1"># noqa: F401  registers them</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">available</span><span class="p">:</span>
+                <span class="n">overrides</span> <span class="o">=</span> <span class="n">onscreen_overrides</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">library</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">context</span><span class="p">([</span><span class="n">name</span><span class="p">,</span> <span class="n">overrides</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">rc_changes</span> <span class="ow">or</span> <span class="p">{})])</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span>
+        <span class="k">return</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc_context</span><span class="p">(</span><span class="n">rc</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">nullcontext</span><span class="p">()</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

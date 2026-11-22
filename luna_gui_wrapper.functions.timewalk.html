@@ -1,0 +1,241 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.timewalk module &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="luna_gui_wrapper.functions.tdc module" href="luna_gui_wrapper.functions.tdc.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">luna_gui_wrapper</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="luna_gui_wrapper.html">luna_gui_wrapper package</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.add_tdc_columns"><code class="docutils literal notranslate"><span class="pre">add_tdc_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.add_timewalk_columns"><code class="docutils literal notranslate"><span class="pre">add_timewalk_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_tdcs"><code class="docutils literal notranslate"><span class="pre">read_tdcs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_timewalk_curve"><code class="docutils literal notranslate"><span class="pre">read_timewalk_curve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_with_tdc"><code class="docutils literal notranslate"><span class="pre">read_with_tdc()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_with_timewalk"><code class="docutils literal notranslate"><span class="pre">read_with_timewalk()</span></code></a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="luna_gui_wrapper.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">luna_gui_wrapper</a></li>
+          <li class="breadcrumb-item"><a href="luna_gui_wrapper.html">luna_gui_wrapper package</a></li>
+          <li class="breadcrumb-item"><a href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.timewalk module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/luna_gui_wrapper.functions.timewalk.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-luna_gui_wrapper.functions.timewalk">
+<span id="luna-gui-wrapper-functions-timewalk-module"></span><h1>luna_gui_wrapper.functions.timewalk module<a class="headerlink" href="#module-luna_gui_wrapper.functions.timewalk" title="Link to this heading"></a></h1>
+<p>Timewalk post-processing: measure the timewalk curve from the clusters in
+the file itself and add timewalk-corrected times to its tables.</p>
+<p>No TDC or test pulses are needed. All pixels of one cluster fired at the same
+moment, so their spread in ToA is timewalk plus jitter. The pixel with the
+largest ToT (the one tpx3dump/tpx4dump report as ctot, whose ToA is ctoa) has
+the least timewalk and serves as the clock:</p>
+<blockquote>
+<div><p>dt = toa(hit) - ctoa(its cluster)     vs.     ToT(hit)</p>
+</div></blockquote>
+<p>Only clusters with ctot &gt;= ctot_cut take part, so the reference itself walks
+little. Per ToT bin the peak of dt is found with an iterated 3-sigma
+truncated mean (robust against the flat background of pile-up hits, and
+unlike a median not stuck to the 1.5625 ns ToA grid). The result is one curve
+per file, delay(ToT), and every time is corrected by it:</p>
+<blockquote>
+<div><p>toa_tw  = toa  - delay(tot)
+ctoa_tw = ctoa - delay(ctot)</p>
+</div></blockquote>
+<p>The corrected times become the last field of the tables themselves –
+Clusters/ctoa_tw, and PixelHits/toa_tw on request – and the curve is kept as
+/TimewalkCurve. An HDF5 compound dataset has a fixed dtype, so the first run
+on a file rewrites it once (into a temporary file beside it, swapped in only
+when complete); later runs update the field in place.</p>
+<p>Correcting each pixel on its own means the reference’s own walk drops out of
+any time difference. The curve is relative to the high-ToT limit; the constant
+offset to true arrival time is unknowable without an external reference and
+does not matter for time differences.</p>
+<p>Qt-free. h5py, numpy and pandas are imported inside the functions that need
+them, so importing this module needs none of them.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.accumulate_timewalk">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">accumulate_timewalk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctoa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lo</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">det</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctot_cut_ns</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tot_sum</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#accumulate_timewalk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.accumulate_timewalk" title="Link to this definition"></a></dt>
+<dd><p>Add one chunk of hits to the dt-vs-ToT histogram H (in place).</p>
+<p><cite>ctoa</cite>/<cite>ctot</cite> are the cluster fields for cluster ids lo, lo+1, …
+Returns how many hits went in.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.add_timewalk_columns">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">add_timewalk_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctot_cut_ns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_hits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_hits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#add_timewalk_columns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.add_timewalk_columns" title="Link to this definition"></a></dt>
+<dd><p>Measure this file’s timewalk curve and add corrected times to its tables.</p>
+<p>Clusters gets a last field <cite>ctoa_tw</cite>; with <cite>pixel_hits</cite>, PixelHits gets
+<cite>toa_tw</cite> too. Both are in the table’s own ticks. The curve is stored as
+/TimewalkCurve. A table that already carries the field from an earlier
+run is updated to the new curve, whatever <cite>pixel_hits</cite> says, so it never
+goes stale.</p>
+<p>Adding a field means rewriting the file once: it is written to a
+temporary file beside the original and swapped in only when complete,
+which needs free space for one more copy of the file. Later runs update
+the fields in place.</p>
+<p>Returns a summary dict, and raises on anything wrong.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.corrected_times">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">corrected_times</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">curve</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">det</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#corrected_times"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.corrected_times" title="Link to this definition"></a></dt>
+<dd><p>The corrected time (ctoa_tw / toa_tw) for rows of <cite>table</cite> that do not
+carry the field, from a timewalk curve; the values the field would hold.
+<cite>block</cite> needs the table’s time and ToT fields.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.curve_from_histogram">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">curve_from_histogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">H</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tot_sum</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt_lsb_ns</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_counts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#curve_from_histogram"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.curve_from_histogram" title="Link to this definition"></a></dt>
+<dd><p>The curve as a structured array, one row per well-filled ToT bin.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.measure_timewalk">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">measure_timewalk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">det</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ctot_cut_ns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_hits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#measure_timewalk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.measure_timewalk" title="Link to this definition"></a></dt>
+<dd><p>(curve, hits used) from an open file. Raises if there is nothing to
+measure from.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.peak_of">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">peak_of</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centres</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">12</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#peak_of"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.peak_of" title="Link to this definition"></a></dt>
+<dd><p>(centre, sigma) of the peak in one histogram row: an iterated 3-sigma
+truncated mean, started at the mode.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.read_timewalk_curve">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">read_timewalk_curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#read_timewalk_curve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.read_timewalk_curve" title="Link to this definition"></a></dt>
+<dd><p>The stored /TimewalkCurve as a DataFrame; its attrs carry the settings.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.read_with_timewalk">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">read_with_timewalk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">which</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Clusters'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#read_with_timewalk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.read_with_timewalk" title="Link to this definition"></a></dt>
+<dd><p>One DataFrame of <cite>which</cite> with the corrected time and the correction.</p>
+<p><cite>ctoa_tw</cite> / <cite>toa_tw</cite> come straight from the table when the field is there;
+otherwise (PixelHits written without the per-hit option) they are computed
+from /TimewalkCurve, to the same values. <cite>timewalk_ns</cite> (what was
+subtracted) is added either way.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.timewalk.timewalk_delay_ns">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.timewalk.</span></span><span class="sig-name descname"><span class="pre">timewalk_delay_ns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tot_ns</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">curve</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/timewalk.html#timewalk_delay_ns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.timewalk.timewalk_delay_ns" title="Link to this definition"></a></dt>
+<dd><p>delay(ToT) in ns, linear between bins and held at both ends.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="luna_gui_wrapper.functions.tdc.html" class="btn btn-neutral float-left" title="luna_gui_wrapper.functions.tdc module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

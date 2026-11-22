@@ -1,0 +1,7 @@
+luna\_gui\_wrapper.functions.naming module
+==========================================
+
+.. automodule:: luna_gui_wrapper.functions.naming
+   :members:
+   :show-inheritance:
+   :undoc-members:

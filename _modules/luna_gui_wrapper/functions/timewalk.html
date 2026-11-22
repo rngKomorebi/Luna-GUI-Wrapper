@@ -1,0 +1,601 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.timewalk &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.timewalk</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for luna_gui_wrapper.functions.timewalk</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Timewalk post-processing: measure the timewalk curve from the clusters in</span>
+<span class="sd">the file itself and add timewalk-corrected times to its tables.</span>
+
+<span class="sd">No TDC or test pulses are needed. All pixels of one cluster fired at the same</span>
+<span class="sd">moment, so their spread in ToA is timewalk plus jitter. The pixel with the</span>
+<span class="sd">largest ToT (the one tpx3dump/tpx4dump report as ctot, whose ToA is ctoa) has</span>
+<span class="sd">the least timewalk and serves as the clock:</span>
+
+<span class="sd">    dt = toa(hit) - ctoa(its cluster)     vs.     ToT(hit)</span>
+
+<span class="sd">Only clusters with ctot &gt;= ctot_cut take part, so the reference itself walks</span>
+<span class="sd">little. Per ToT bin the peak of dt is found with an iterated 3-sigma</span>
+<span class="sd">truncated mean (robust against the flat background of pile-up hits, and</span>
+<span class="sd">unlike a median not stuck to the 1.5625 ns ToA grid). The result is one curve</span>
+<span class="sd">per file, delay(ToT), and every time is corrected by it:</span>
+
+<span class="sd">    toa_tw  = toa  - delay(tot)</span>
+<span class="sd">    ctoa_tw = ctoa - delay(ctot)</span>
+
+<span class="sd">The corrected times become the last field of the tables themselves --</span>
+<span class="sd">Clusters/ctoa_tw, and PixelHits/toa_tw on request -- and the curve is kept as</span>
+<span class="sd">/TimewalkCurve. An HDF5 compound dataset has a fixed dtype, so the first run</span>
+<span class="sd">on a file rewrites it once (into a temporary file beside it, swapped in only</span>
+<span class="sd">when complete); later runs update the field in place.</span>
+
+<span class="sd">Correcting each pixel on its own means the reference's own walk drops out of</span>
+<span class="sd">any time difference. The curve is relative to the high-ToT limit; the constant</span>
+<span class="sd">offset to true arrival time is unknowable without an external reference and</span>
+<span class="sd">does not matter for time differences.</span>
+
+<span class="sd">Qt-free. h5py, numpy and pandas are imported inside the functions that need</span>
+<span class="sd">them, so importing this module needs none of them.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.detectors</span><span class="w"> </span><span class="kn">import</span> <span class="n">detect_from_file</span>
+
+<span class="c1"># Table -&gt; (time field, ToT field, corrected field appended to that table).</span>
+<span class="n">TW_FIELDS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Clusters"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"ctoa"</span><span class="p">,</span> <span class="s2">"ctot"</span><span class="p">,</span> <span class="s2">"ctoa_tw"</span><span class="p">),</span>
+             <span class="s2">"PixelHits"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"toa"</span><span class="p">,</span> <span class="s2">"tot"</span><span class="p">,</span> <span class="s2">"toa_tw"</span><span class="p">)}</span>
+<span class="n">TW_CURVE</span> <span class="o">=</span> <span class="s2">"TimewalkCurve"</span>
+<span class="c1"># Separate datasets the first version of this feature wrote; dropped when a</span>
+<span class="c1"># file is converted to the in-table fields.</span>
+<span class="n">TW_LEGACY</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"ClustersTimewalk"</span><span class="p">,</span> <span class="s2">"PixelHitsTimewalk"</span><span class="p">)</span>
+<span class="n">TW_CURVE_FIELDS</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"tot_ns"</span><span class="p">,</span> <span class="s2">"&lt;f8"</span><span class="p">),</span>     <span class="c1"># mean hit ToT in the bin</span>
+                   <span class="p">(</span><span class="s2">"delay_ns"</span><span class="p">,</span> <span class="s2">"&lt;f8"</span><span class="p">),</span>   <span class="c1"># peak of toa - ctoa: the timewalk</span>
+                   <span class="p">(</span><span class="s2">"sigma_ns"</span><span class="p">,</span> <span class="s2">"&lt;f8"</span><span class="p">),</span>   <span class="c1"># width of that peak: the jitter</span>
+                   <span class="p">(</span><span class="s2">"n"</span><span class="p">,</span> <span class="s2">"&lt;i8"</span><span class="p">)]</span>          <span class="c1"># hits in the bin</span>
+
+<span class="c1"># Marks what this GUI wrote, so a rerun replaces its own curve and fields and</span>
+<span class="c1"># refuses to touch anything else under those names. On a table it sits in the</span>
+<span class="c1"># attribute TW_FIELD_ATTR, naming the field.</span>
+<span class="n">TW_STAMP</span> <span class="o">=</span> <span class="s2">"luna_gui_wrapper.timewalk"</span>
+<span class="n">TW_FIELD_ATTR</span> <span class="o">=</span> <span class="s2">"timewalk_field"</span>
+
+<span class="c1"># Clusters whose peak-pixel ToT is below this are not used to build the curve:</span>
+<span class="c1"># their reference pixel walks too much itself. 1000 ns keeps that walk below</span>
+<span class="c1"># ~5 ns on a Timepix3Cam; Luna's own --ctot-cut defaults to 450.</span>
+<span class="n">TW_DEFAULT_CTOT_CUT_NS</span> <span class="o">=</span> <span class="mf">1000.0</span>
+
+<span class="c1"># Curve binning. 25 ns is one Timepix3 ToT step, so there every bin is one ToT</span>
+<span class="c1"># value. Hits above TW_TOT_MAX_NS are left out of the curve (the walk there is</span>
+<span class="c1"># far below one ToA step) and get the last bin's value.</span>
+<span class="n">TW_TOT_BIN_NS</span> <span class="o">=</span> <span class="mf">25.0</span>
+<span class="n">TW_TOT_MAX_NS</span> <span class="o">=</span> <span class="mf">10_000.0</span>
+<span class="c1"># dt window around zero; the walk of a 25 ns hit is ~100 ns.</span>
+<span class="n">TW_DT_HALF_NS</span> <span class="o">=</span> <span class="mf">400.0</span>
+<span class="c1"># A bin needs this many hits for its peak to count.</span>
+<span class="n">TW_MIN_COUNTS</span> <span class="o">=</span> <span class="mi">200</span>
+
+<span class="c1"># The curve settles long before a big file ends: 50 M hits take ~10 s and the</span>
+<span class="c1"># per-bin statistics are already in the 10^4-10^6 range.</span>
+<span class="n">TW_CURVE_MAX_HITS</span> <span class="o">=</span> <span class="mi">50_000_000</span>
+<span class="n">TW_CHUNK</span> <span class="o">=</span> <span class="mi">2_000_000</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_cluster_slice</span><span class="p">(</span><span class="n">clusters</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Clusters[lo:hi+1] as (ctoa, ctot), checking that id is the row number.</span>
+
+<span class="sd">    Hits arrive in time order, so one chunk of hits belongs to a short run of</span>
+<span class="sd">    consecutive clusters and only that run is read, three fields of it.</span>
+<span class="sd">    """</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">clusters</span><span class="o">.</span><span class="n">fields</span><span class="p">([</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"ctoa"</span><span class="p">,</span> <span class="s2">"ctot"</span><span class="p">])[</span><span class="n">lo</span><span class="p">:</span><span class="n">hi</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>       <span class="c1"># a numpy array in the tests</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">clusters</span><span class="p">[</span><span class="n">lo</span><span class="p">:</span><span class="n">hi</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">!=</span> <span class="n">hi</span> <span class="o">-</span> <span class="n">lo</span> <span class="o">+</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">c</span><span class="p">[</span><span class="s2">"id"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lo</span> <span class="ow">or</span> <span class="n">c</span><span class="p">[</span><span class="s2">"id"</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">hi</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Clusters/id is not the row number, so hits cannot be "</span>
+                         <span class="s2">"matched to their cluster."</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">c</span><span class="p">[</span><span class="s2">"ctoa"</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s2">"ctot"</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="accumulate_timewalk">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.accumulate_timewalk">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">accumulate_timewalk</span><span class="p">(</span><span class="n">hits</span><span class="p">,</span> <span class="n">ctoa</span><span class="p">,</span> <span class="n">ctot</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">ctot_cut_ns</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">tot_sum</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Add one chunk of hits to the dt-vs-ToT histogram H (in place).</span>
+
+<span class="sd">    `ctoa`/`ctot` are the cluster fields for cluster ids lo, lo+1, ...</span>
+<span class="sd">    Returns how many hits went in.</span>
+<span class="sd">    """</span>
+    <span class="n">cid</span> <span class="o">=</span> <span class="n">hits</span><span class="p">[</span><span class="s2">"cid"</span><span class="p">]</span>
+    <span class="n">ok</span> <span class="o">=</span> <span class="n">cid</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">cid</span><span class="p">[</span><span class="n">ok</span><span class="p">]</span> <span class="o">-</span> <span class="n">lo</span>
+    <span class="n">tick_ns</span> <span class="o">=</span> <span class="n">det</span><span class="o">.</span><span class="n">toa_seconds</span> <span class="o">*</span> <span class="mf">1e9</span>
+    <span class="n">tot_scale</span> <span class="o">=</span> <span class="n">det</span><span class="o">.</span><span class="n">tot_seconds</span> <span class="o">*</span> <span class="mf">1e9</span>
+    <span class="c1"># toa - ctoa computed here, not read from dtoa: tpx4dump stores dtoa as</span>
+    <span class="c1"># int32 of 1e-16 s ticks, which wraps beyond +-214 ns.</span>
+    <span class="n">ticks</span> <span class="o">=</span> <span class="n">hits</span><span class="p">[</span><span class="s2">"toa"</span><span class="p">][</span><span class="n">ok</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span> <span class="o">-</span> <span class="n">ctoa</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">tot</span> <span class="o">=</span> <span class="n">hits</span><span class="p">[</span><span class="s2">"tot"</span><span class="p">][</span><span class="n">ok</span><span class="p">]</span>
+    <span class="n">c_tot</span> <span class="o">=</span> <span class="n">ctot</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">dt_bin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">ticks</span> <span class="o">*</span> <span class="p">(</span><span class="n">tick_ns</span> <span class="o">/</span> <span class="n">det</span><span class="o">.</span><span class="n">toa_lsb_ns</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">tot_ns</span> <span class="o">=</span> <span class="n">tot</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"float64"</span><span class="p">)</span> <span class="o">*</span> <span class="n">tot_scale</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="p">((</span><span class="n">c_tot</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"float64"</span><span class="p">)</span> <span class="o">*</span> <span class="n">tot_scale</span> <span class="o">&gt;=</span> <span class="n">ctot_cut_ns</span><span class="p">)</span>
+            <span class="c1"># the reference pixel itself: dt = 0 by definition</span>
+            <span class="o">&amp;</span> <span class="o">~</span><span class="p">((</span><span class="n">ticks</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">tot</span> <span class="o">==</span> <span class="n">c_tot</span><span class="p">))</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">dt_bin</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">half</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">tot_ns</span> <span class="o">&lt;</span> <span class="n">TW_TOT_MAX_NS</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">keep</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="n">tb</span> <span class="o">=</span> <span class="p">(</span><span class="n">tot_ns</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span> <span class="o">//</span> <span class="n">TW_TOT_BIN_NS</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">tb</span> <span class="o">*</span> <span class="n">H</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">dt_bin</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span> <span class="o">+</span> <span class="n">half</span>
+    <span class="n">H</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">H</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">tot_sum</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">tb</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">tot_ns</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">tot_sum</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">keep</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="peak_of">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.peak_of">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">peak_of</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">centres</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">iterations</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""(centre, sigma) of the peak in one histogram row: an iterated 3-sigma</span>
+<span class="sd">    truncated mean, started at the mode."""</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">centres</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts</span><span class="p">))]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iterations</span><span class="p">):</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">centres</span> <span class="o">-</span> <span class="n">m</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
+        <span class="n">tot</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">tot</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="n">centres</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">tot</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">centres</span> <span class="o">-</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">tot</span><span class="p">)),</span>
+                <span class="mf">0.5</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">centres</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">centres</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">m</span><span class="p">,</span> <span class="n">s</span></div>
+
+
+
+<div class="viewcode-block" id="curve_from_histogram">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.curve_from_histogram">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">curve_from_histogram</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">tot_sum</span><span class="p">,</span> <span class="n">dt_lsb_ns</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">min_counts</span><span class="o">=</span><span class="n">TW_MIN_COUNTS</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The curve as a structured array, one row per well-filled ToT bin."""</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">centres</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">half</span><span class="p">)</span> <span class="o">*</span> <span class="n">dt_lsb_ns</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">H</span><span class="p">[</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">min_counts</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">m</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">peak_of</span><span class="p">(</span><span class="n">H</span><span class="p">[</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"float64"</span><span class="p">),</span> <span class="n">centres</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tot_sum</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">/</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">TW_CURVE_FIELDS</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="timewalk_delay_ns">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.timewalk_delay_ns">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">timewalk_delay_ns</span><span class="p">(</span><span class="n">tot_ns</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""delay(ToT) in ns, linear between bins and held at both ends."""</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">tot_ns</span><span class="p">,</span> <span class="n">curve</span><span class="p">[</span><span class="s2">"tot_ns"</span><span class="p">],</span> <span class="n">curve</span><span class="p">[</span><span class="s2">"delay_ns"</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="measure_timewalk">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.measure_timewalk">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">measure_timewalk</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">ctot_cut_ns</span><span class="o">=</span><span class="n">TW_DEFAULT_CTOT_CUT_NS</span><span class="p">,</span>
+                     <span class="n">max_hits</span><span class="o">=</span><span class="n">TW_CURVE_MAX_HITS</span><span class="p">,</span> <span class="n">np</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""(curve, hits used) from an open file. Raises if there is nothing to</span>
+<span class="sd">    measure from."""</span>
+    <span class="k">if</span> <span class="n">np</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+    <span class="k">if</span> <span class="s2">"PixelHits"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">f</span><span class="p">[</span><span class="s2">"PixelHits"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"This file has no pixel hits to measure the timewalk "</span>
+                         <span class="s2">"from (processed with --discard-pixel-data?)."</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"Clusters"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">f</span><span class="p">[</span><span class="s2">"Clusters"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"This file has no clusters (processed with "</span>
+                         <span class="s2">"--disable-clustering?), and the timewalk is measured "</span>
+                         <span class="s2">"inside clusters."</span><span class="p">)</span>
+    <span class="n">ph</span><span class="p">,</span> <span class="n">cl</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s2">"PixelHits"</span><span class="p">],</span> <span class="n">f</span><span class="p">[</span><span class="s2">"Clusters"</span><span class="p">]</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">max_hits</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_hits</span><span class="p">))</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">TW_DT_HALF_NS</span> <span class="o">/</span> <span class="n">det</span><span class="o">.</span><span class="n">toa_lsb_ns</span><span class="p">))</span>
+    <span class="n">n_tot</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">TW_TOT_MAX_NS</span> <span class="o">/</span> <span class="n">TW_TOT_BIN_NS</span><span class="p">)</span>
+    <span class="n">H</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_tot</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">half</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">tot_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_tot</span><span class="p">)</span>
+    <span class="n">used</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">TW_CHUNK</span><span class="p">):</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="n">ph</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="nb">min</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="n">TW_CHUNK</span><span class="p">,</span> <span class="n">n</span><span class="p">)]</span>
+        <span class="n">cid</span> <span class="o">=</span> <span class="n">hits</span><span class="p">[</span><span class="s2">"cid"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">cid</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">continue</span>
+        <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cid</span><span class="p">[</span><span class="n">cid</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">int</span><span class="p">(</span><span class="n">cid</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="n">ctoa</span><span class="p">,</span> <span class="n">ctot</span> <span class="o">=</span> <span class="n">_cluster_slice</span><span class="p">(</span><span class="n">cl</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span>
+        <span class="n">used</span> <span class="o">+=</span> <span class="n">accumulate_timewalk</span><span class="p">(</span><span class="n">hits</span><span class="p">,</span> <span class="n">ctoa</span><span class="p">,</span> <span class="n">ctot</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">ctot_cut_ns</span><span class="p">,</span>
+                                    <span class="n">H</span><span class="p">,</span> <span class="n">tot_sum</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">curve</span> <span class="o">=</span> <span class="n">curve_from_histogram</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">tot_sum</span><span class="p">,</span> <span class="n">det</span><span class="o">.</span><span class="n">toa_lsb_ns</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">curve</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"Too few multi-pixel clusters with ctot &gt;= </span><span class="si">%g</span><span class="s2"> ns to measure a "</span>
+            <span class="s2">"timewalk curve (</span><span class="si">%s</span><span class="s2"> hits used). Try a lower ctot cut."</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">ctot_cut_ns</span><span class="p">,</span> <span class="nb">format</span><span class="p">(</span><span class="n">used</span><span class="p">,</span> <span class="s2">","</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">curve</span><span class="p">,</span> <span class="n">used</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_owned_field</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""True if `field` is in table `ds` and this GUI put it there; raises if</span>
+<span class="sd">    the field is there but someone else's."""</span>
+    <span class="k">if</span> <span class="n">field</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span> <span class="ow">or</span> <span class="p">()):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">ds</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TW_FIELD_ATTR</span><span class="p">)</span> <span class="o">!=</span> <span class="n">field</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="s2"> already has a field '</span><span class="si">%s</span><span class="s2">' that was not written by "</span>
+                         <span class="s2">"this GUI. Refusing to replace it."</span> <span class="o">%</span> <span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_corrected</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""t - delay(ToT) for one block of rows, in the table's own ticks."""</span>
+    <span class="n">delay</span> <span class="o">=</span> <span class="n">timewalk_delay_ns</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">block</span><span class="p">[</span><span class="n">tot_field</span><span class="p">])</span> <span class="o">*</span> <span class="p">(</span><span class="n">det</span><span class="o">.</span><span class="n">tot_seconds</span> <span class="o">*</span> <span class="mf">1e9</span><span class="p">),</span>
+                              <span class="n">curve</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">delay</span> <span class="o">/</span> <span class="p">(</span><span class="n">det</span><span class="o">.</span><span class="n">toa_seconds</span> <span class="o">*</span> <span class="mf">1e9</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">block</span><span class="p">[</span><span class="n">t_field</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="n">corr</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"uint64"</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="corrected_times">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.corrected_times">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">corrected_times</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The corrected time (ctoa_tw / toa_tw) for rows of `table` that do not</span>
+<span class="sd">    carry the field, from a timewalk curve; the values the field would hold.</span>
+<span class="sd">    `block` needs the table's time and ToT fields."""</span>
+    <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">_field</span> <span class="o">=</span> <span class="n">TW_FIELDS</span><span class="p">[</span><span class="n">table</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">_corrected</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_with_field</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""`dtype` with a u8 `field` appended after its last byte, keeping the</span>
+<span class="sd">    original names, offsets and padding exactly."""</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">({</span><span class="s2">"names"</span><span class="p">:</span> <span class="n">names</span> <span class="o">+</span> <span class="p">[</span><span class="n">field</span><span class="p">],</span>
+                     <span class="s2">"formats"</span><span class="p">:</span> <span class="p">[</span><span class="n">dtype</span><span class="o">.</span><span class="n">fields</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">"&lt;u8"</span><span class="p">],</span>
+                     <span class="s2">"offsets"</span><span class="p">:</span> <span class="p">[</span><span class="n">dtype</span><span class="o">.</span><span class="n">fields</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span>
+                     <span class="o">+</span> <span class="p">[</span><span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span><span class="p">],</span>
+                     <span class="s2">"itemsize"</span><span class="p">:</span> <span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span> <span class="o">+</span> <span class="mi">8</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_copy_table_with_field</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dst_parent</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span>
+                           <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">h5py</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Write `src` into `dst_parent` under the same name with `field` appended,</span>
+<span class="sd">    keeping its chunking, compression, maxshape and attributes."""</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">_with_field</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># Luna's own creation properties, so filters (any compression, even a</span>
+    <span class="c1"># plugin one) carry over. The chunk layout also records the row size,</span>
+    <span class="c1"># which has grown, so it is set again from the chunk dimensions.</span>
+    <span class="n">dcpl</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">get_create_plist</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">chunks</span><span class="p">:</span>
+        <span class="n">dcpl</span><span class="o">.</span><span class="n">set_chunk</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">chunks</span><span class="p">)</span>
+    <span class="n">dsid</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">h5d</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">dst_parent</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+                           <span class="n">h5py</span><span class="o">.</span><span class="n">h5t</span><span class="o">.</span><span class="n">py_create</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">logical</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                           <span class="n">src</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">get_space</span><span class="p">(),</span> <span class="n">dcpl</span><span class="o">=</span><span class="n">dcpl</span><span class="p">)</span>
+    <span class="n">dst</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">dsid</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">src</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">dst</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">TW_CHUNK</span><span class="p">):</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="n">TW_CHUNK</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+        <span class="n">block</span> <span class="o">=</span> <span class="n">src</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="n">i</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">src</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">block</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">_corrected</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">dst</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="n">dst</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">TW_FIELD_ATTR</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+    <span class="k">return</span> <span class="n">dst</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_update_field</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Recompute an existing field in place, a slice at a time."""</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">TW_CHUNK</span><span class="p">):</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="n">TW_CHUNK</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+        <span class="n">block</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">block</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">_corrected</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">ds</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">block</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_write_curve</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">TW_CURVE</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">del</span> <span class="n">f</span><span class="p">[</span><span class="n">TW_CURVE</span><span class="p">]</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">TW_CURVE</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">curve</span><span class="p">)</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="add_timewalk_columns">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.add_timewalk_columns">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_timewalk_columns</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">ctot_cut_ns</span><span class="o">=</span><span class="n">TW_DEFAULT_CTOT_CUT_NS</span><span class="p">,</span>
+                         <span class="n">pixel_hits</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_hits</span><span class="o">=</span><span class="n">TW_CURVE_MAX_HITS</span><span class="p">,</span>
+                         <span class="n">detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Measure this file's timewalk curve and add corrected times to its tables.</span>
+
+<span class="sd">    Clusters gets a last field `ctoa_tw`; with `pixel_hits`, PixelHits gets</span>
+<span class="sd">    `toa_tw` too. Both are in the table's own ticks. The curve is stored as</span>
+<span class="sd">    /TimewalkCurve. A table that already carries the field from an earlier</span>
+<span class="sd">    run is updated to the new curve, whatever `pixel_hits` says, so it never</span>
+<span class="sd">    goes stale.</span>
+
+<span class="sd">    Adding a field means rewriting the file once: it is written to a</span>
+<span class="sd">    temporary file beside the original and swapped in only when complete,</span>
+<span class="sd">    which needs free space for one more copy of the file. Later runs update</span>
+<span class="sd">    the fields in place.</span>
+
+<span class="sd">    Returns a summary dict, and raises on anything wrong.</span>
+<span class="sd">    """</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+    <span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="n">say</span> <span class="o">=</span> <span class="n">log</span> <span class="k">if</span> <span class="n">log</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">_m</span><span class="p">:</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">det</span> <span class="o">=</span> <span class="n">detector</span> <span class="ow">or</span> <span class="n">detect_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">det</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Cannot tell Timepix3 from Timepix4 in this file: "</span>
+                             <span class="s2">"it has no non-zero ToT."</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="n">TW_CURVE</span><span class="p">,)</span> <span class="o">+</span> <span class="n">TW_LEGACY</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">f</span> <span class="ow">and</span> <span class="n">f</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"written_by"</span><span class="p">)</span> <span class="o">!=</span> <span class="n">TW_STAMP</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"/</span><span class="si">%s</span><span class="s2"> already exists and was not written by "</span>
+                                 <span class="s2">"this GUI. Refusing to replace it."</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+        <span class="c1"># Which tables get the field, and which of them have it already.</span>
+        <span class="n">targets</span><span class="p">,</span> <span class="n">have</span> <span class="o">=</span> <span class="p">[],</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">table</span><span class="p">,</span> <span class="p">(</span><span class="n">_t</span><span class="p">,</span> <span class="n">_tot</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="ow">in</span> <span class="n">TW_FIELDS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">table</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">f</span><span class="p">[</span><span class="n">table</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="n">owned</span> <span class="o">=</span> <span class="n">_owned_field</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">table</span><span class="p">],</span> <span class="n">field</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">table</span> <span class="o">==</span> <span class="s2">"Clusters"</span> <span class="ow">or</span> <span class="n">pixel_hits</span> <span class="ow">or</span> <span class="n">owned</span><span class="p">:</span>
+                <span class="n">targets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">owned</span><span class="p">:</span>
+                    <span class="n">have</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+        <span class="n">curve</span><span class="p">,</span> <span class="n">used</span> <span class="o">=</span> <span class="n">measure_timewalk</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">ctot_cut_ns</span><span class="p">,</span> <span class="n">max_hits</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">legacy</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">TW_LEGACY</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">f</span><span class="p">]</span>
+    <span class="n">say</span><span class="p">(</span><span class="s2">"  timewalk curve from </span><span class="si">%s</span><span class="s2"> hits (ctot &gt;= </span><span class="si">%g</span><span class="s2"> ns): </span><span class="si">%.1f</span><span class="s2"> ns at "</span>
+        <span class="s2">"ToT </span><span class="si">%.0f</span><span class="s2"> ns, </span><span class="si">%.2f</span><span class="s2"> ns at ToT </span><span class="si">%.0f</span><span class="s2"> ns"</span>
+        <span class="o">%</span> <span class="p">(</span><span class="nb">format</span><span class="p">(</span><span class="n">used</span><span class="p">,</span> <span class="s2">","</span><span class="p">),</span> <span class="n">ctot_cut_ns</span><span class="p">,</span> <span class="n">curve</span><span class="p">[</span><span class="s2">"delay_ns"</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+           <span class="n">curve</span><span class="p">[</span><span class="s2">"tot_ns"</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">curve</span><span class="p">[</span><span class="s2">"delay_ns"</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">curve</span><span class="p">[</span><span class="s2">"tot_ns"</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+
+    <span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"written_by"</span><span class="p">:</span> <span class="n">TW_STAMP</span><span class="p">,</span> <span class="s2">"ctot_cut_ns"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ctot_cut_ns</span><span class="p">),</span>
+             <span class="s2">"hits_used"</span><span class="p">:</span> <span class="n">used</span><span class="p">,</span> <span class="s2">"detector"</span><span class="p">:</span> <span class="n">det</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+             <span class="c1"># ticks of toa / ctoa / toa_tw / ctoa_tw, so readers need no table</span>
+             <span class="s2">"seconds_per_tick"</span><span class="p">:</span> <span class="n">det</span><span class="o">.</span><span class="n">toa_seconds</span><span class="p">,</span>
+             <span class="s2">"method"</span><span class="p">:</span> <span class="s2">"peak of toa - ctoa per ToT bin, clusters with "</span>
+                       <span class="s2">"ctot &gt;= ctot_cut_ns; 3-sigma truncated mean"</span><span class="p">}</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">rewrite</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">t</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">have</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">rewrite</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"r+"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">:</span>
+                <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">field</span> <span class="o">=</span> <span class="n">TW_FIELDS</span><span class="p">[</span><span class="n">table</span><span class="p">]</span>
+                <span class="n">_update_field</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">table</span><span class="p">],</span> <span class="n">field</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">table</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"rows"</span><span class="p">:</span> <span class="n">f</span><span class="p">[</span><span class="n">table</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">"field"</span><span class="p">:</span> <span class="n">field</span><span class="p">}</span>
+                <span class="n">say</span><span class="p">(</span><span class="s2">"  </span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2"> updated in place (</span><span class="si">%s</span><span class="s2"> rows)"</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="nb">format</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">table</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">","</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">legacy</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">f</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">_write_curve</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="n">free</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">disk_usage</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span><span class="o">.</span><span class="n">free</span>
+        <span class="k">if</span> <span class="n">free</span> <span class="o">&lt;</span> <span class="n">size</span> <span class="o">*</span> <span class="mf">1.1</span> <span class="o">+</span> <span class="mf">64e6</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">"Adding the timewalk field rewrites the file once, which needs "</span>
+                <span class="s2">"</span><span class="si">%.1f</span><span class="s2"> GB free next to it; only </span><span class="si">%.1f</span><span class="s2"> GB are free."</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">size</span> <span class="o">*</span> <span class="mf">1.1</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">free</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">".timewalk-tmp"</span><span class="p">)</span>
+        <span class="n">say</span><span class="p">(</span><span class="s2">"  rewriting the file once to add </span><span class="si">%s</span><span class="s2">"</span>
+            <span class="o">%</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">"</span> <span class="o">%</span> <span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">TW_FIELDS</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">src</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">dst</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">src</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">legacy</span> <span class="ow">or</span> <span class="n">name</span> <span class="o">==</span> <span class="n">TW_CURVE</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">:</span>
+                        <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">field</span> <span class="o">=</span> <span class="n">TW_FIELDS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">have</span><span class="p">:</span>
+                            <span class="n">src</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>
+                            <span class="n">_update_field</span><span class="p">(</span><span class="n">dst</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">field</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span>
+                                          <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">_copy_table_with_field</span><span class="p">(</span><span class="n">src</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">dst</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span>
+                                                   <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span>
+                                                   <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">h5py</span><span class="p">)</span>
+                        <span class="n">out</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"rows"</span><span class="p">:</span> <span class="n">src</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">"field"</span><span class="p">:</span> <span class="n">field</span><span class="p">}</span>
+                        <span class="n">say</span><span class="p">(</span><span class="s2">"  </span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2"> rows"</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="nb">format</span><span class="p">(</span><span class="n">src</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">","</span><span class="p">)))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Raw chunk copy: filters, chunking and attributes</span>
+                        <span class="c1"># kept, nothing decoded.</span>
+                        <span class="n">src</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>
+                <span class="n">_write_curve</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">PermissionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">"Could not replace </span><span class="si">%s</span><span class="s2">: it is open in another program (a "</span>
+                    <span class="s2">"notebook, HDFView, ...). Close it there and try again."</span>
+                    <span class="o">%</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tmp</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">tmp</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+    <span class="n">out</span><span class="p">[</span><span class="n">TW_CURVE</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"bins"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">curve</span><span class="p">),</span> <span class="s2">"hits_used"</span><span class="p">:</span> <span class="n">used</span><span class="p">,</span>
+                     <span class="s2">"ctot_cut_ns"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ctot_cut_ns</span><span class="p">),</span> <span class="s2">"detector"</span><span class="p">:</span> <span class="n">det</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+                     <span class="s2">"delay_ns_lowest_tot"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">curve</span><span class="p">[</span><span class="s2">"delay_ns"</span><span class="p">][</span><span class="mi">0</span><span class="p">]),</span>
+                     <span class="s2">"rewritten"</span><span class="p">:</span> <span class="n">rewrite</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="read_timewalk_curve">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.read_timewalk_curve">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_timewalk_curve</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The stored /TimewalkCurve as a DataFrame; its attrs carry the settings."""</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">TW_CURVE</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"No /</span><span class="si">%s</span><span class="s2"> in this file: run add_timewalk_columns() "</span>
+                             <span class="s2">"first."</span> <span class="o">%</span> <span class="n">TW_CURVE</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">TW_CURVE</span><span class="p">][:])</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s2">"item"</span><span class="p">)</span> <span class="k">else</span> <span class="n">v</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">f</span><span class="p">[</span><span class="n">TW_CURVE</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+
+<div class="viewcode-block" id="read_with_timewalk">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.timewalk.html#luna_gui_wrapper.read_with_timewalk">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_with_timewalk</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">"Clusters"</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One DataFrame of `which` with the corrected time and the correction.</span>
+
+<span class="sd">    `ctoa_tw` / `toa_tw` come straight from the table when the field is there;</span>
+<span class="sd">    otherwise (PixelHits written without the per-hit option) they are computed</span>
+<span class="sd">    from /TimewalkCurve, to the same values. `timewalk_ns` (what was</span>
+<span class="sd">    subtracted) is added either way.</span>
+<span class="sd">    """</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+    <span class="k">if</span> <span class="n">which</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">TW_FIELDS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Expected one of </span><span class="si">%s</span><span class="s2">, got </span><span class="si">%r</span><span class="s2">"</span>
+                         <span class="o">%</span> <span class="p">(</span><span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">TW_FIELDS</span><span class="p">),</span> <span class="n">which</span><span class="p">))</span>
+    <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">field</span> <span class="o">=</span> <span class="n">TW_FIELDS</span><span class="p">[</span><span class="n">which</span><span class="p">]</span>
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">TW_CURVE</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"No /</span><span class="si">%s</span><span class="s2"> in this file: run add_timewalk_columns() "</span>
+                             <span class="s2">"first."</span> <span class="o">%</span> <span class="n">TW_CURVE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">which</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">f</span><span class="p">[</span><span class="n">which</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"This file has no /</span><span class="si">%s</span><span class="s2"> rows."</span> <span class="o">%</span> <span class="n">which</span><span class="p">)</span>
+        <span class="n">det</span> <span class="o">=</span> <span class="n">detect_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">det</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Cannot tell Timepix3 from Timepix4 in this file."</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="n">which</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">total</span> <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">limit</span><span class="p">),</span> <span class="n">total</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">which</span><span class="p">][:</span><span class="n">n</span><span class="p">])</span>
+        <span class="n">curve</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="n">TW_CURVE</span><span class="p">][:]</span>
+    <span class="n">stored</span> <span class="o">=</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">"timewalk_ns"</span><span class="p">]</span> <span class="o">=</span> <span class="n">timewalk_delay_ns</span><span class="p">(</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">tot_field</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="o">*</span> <span class="p">(</span><span class="n">det</span><span class="o">.</span><span class="n">tot_seconds</span> <span class="o">*</span> <span class="mf">1e9</span><span class="p">),</span> <span class="n">curve</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">stored</span><span class="p">:</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">_corrected</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">t_field</span><span class="p">,</span> <span class="n">tot_field</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"timewalk_from_file"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">stored</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

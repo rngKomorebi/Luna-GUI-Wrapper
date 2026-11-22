@@ -1,0 +1,192 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Troubleshooting &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Contributing" href="contribute.html" />
+    <link rel="prev" title="Dark count rate" href="dcr.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#settings">Settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Troubleshooting</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/troubleshooting.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="troubleshooting">
+<h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h1>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Symptom</p></th>
+<th class="head"><p>Cause and fix</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Status reads <code class="docutils literal notranslate"><span class="pre">none</span></code>, “no WSL distribution installed”</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wsl</span> <span class="pre">--install</span> <span class="pre">-d</span> <span class="pre">Ubuntu</span></code>, then press <strong>Check install</strong>; no restart needed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> / <code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code> not found under the Luna folder</p></td>
+<td><p>Point at the install root or its <code class="docutils literal notranslate"><span class="pre">bin/</span></code>, not at the <code class="docutils literal notranslate"><span class="pre">.zip</span></code>. Check that <strong>Detector</strong> matches the Luna you pointed at.</p></td>
+</tr>
+<tr class="row-even"><td><p>UNC path rejected</p></td>
+<td><p>Map <code class="docutils literal notranslate"><span class="pre">\\server\share</span></code> to a drive letter first.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Qt plugin <code class="docutils literal notranslate"><span class="pre">xcb</span></code> will not load (Linux)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">install</span> <span class="pre">libxcb-cursor0</span> <span class="pre">libxkbcommon-x11-0</span> <span class="pre">libegl1</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Launcher installed but not in the applications menu (Linux)</p></td>
+<td><p>Work through <a class="reference internal" href="installation.html#not-showing-up-in-the-applications-menu"><span class="std std-ref">Linux step 4</span></a>; start with <code class="docutils literal notranslate"><span class="pre">desktop-file-validate</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Generic gear instead of the app icon in the dock (Linux)</p></td>
+<td><p>The window must be matched to its <code class="docutils literal notranslate"><span class="pre">.desktop</span></code> entry. Install the launcher with <code class="docutils literal notranslate"><span class="pre">./install-linux.sh</span></code>: the app reports itself as <code class="docutils literal notranslate"><span class="pre">luna-gui-wrapper</span></code>, and without that file there is nothing to match.</p></td>
+</tr>
+<tr class="row-even"><td><p>Menu entry appears but clicking it does nothing (Linux)</p></td>
+<td><p>PySide6 or <code class="docutils literal notranslate"><span class="pre">libxcb-cursor0</span></code> missing. Run <code class="docutils literal notranslate"><span class="pre">./run_gui.sh</span></code> in a terminal to see the real error.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Inspect tab inert</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">h5py</span> <span class="pre">numpy</span> <span class="pre">pandas</span> <span class="pre">matplotlib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>“No <code class="docutils literal notranslate"><span class="pre">/TDCEvents</span></code> in this file”</p></td>
+<td><p>A Timepix4 file (no TDC), a file that predates <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code>’s TDC support, or a run that recorded no TDC at all.</p></td>
+</tr>
+<tr class="row-odd"><td><p>“No TDC1Rising edges in this file”</p></td>
+<td><p>That reference was never pulsed; the summary line lists which types the file does have.</p></td>
+</tr>
+<tr class="row-even"><td><p>Most rows report no TDC</p></td>
+<td><p>They precede the first reference edge. Normal at the start of a run; the plot title and the write dialog both state how many.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/ClustersTDC</span></code> already exists, refusing to replace</p></td>
+<td><p>Something other than this GUI wrote that name. Rename or remove it yourself; the GUI will not overwrite what it did not write.</p></td>
+</tr>
+<tr class="row-even"><td><p>Thousands of <code class="docutils literal notranslate"><span class="pre">[ERROR]</span> <span class="pre">...</span> <span class="pre">Packet</span> <span class="pre">is</span> <span class="pre">ignored</span></code> lines (Timepix4)</p></td>
+<td><p>That is <code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code>’s own output for dropped packets; the file is still written. The log shows the first 20 and counts the rest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Batch is slow on Windows</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/mnt/d</span></code> goes through WSL’s 9P bridge; copy raw data into the WSL filesystem for big jobs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">index</span> <span class="pre">out</span> <span class="pre">of</span> <span class="pre">bounds:</span> <span class="pre">the</span> <span class="pre">len</span> <span class="pre">is</span> <span class="pre">0</span></code>, after <code class="docutils literal notranslate"><span class="pre">Skipping</span> <span class="pre">file</span> <span class="pre">...</span></code></p></td>
+<td><p>WSL cannot see the drive the data is on, which is normal for USB sticks and other removable disks. Answer <strong>Yes</strong> when the GUI offers to mount it, or see <a class="reference internal" href="installation.html#step-3-check-the-installation"><span class="std std-ref">Can WSL see your data?</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Files report <code class="docutils literal notranslate"><span class="pre">skipped</span> <span class="pre">-</span> <span class="pre">output</span> <span class="pre">exists</span></code></p></td>
+<td><p>That is the <strong>Skip files whose output already exists</strong> option. Tick <strong>Overwrite</strong> on the rows you want redone, or use the checkbox in that column’s header to tick them all.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">H5Fcreate():</span> <span class="pre">unable</span> <span class="pre">to</span> <span class="pre">create</span> <span class="pre">file</span></code>, row says <em>output name too long</em></p></td>
+<td><p>A file name may be at most 255 characters, and <code class="docutils literal notranslate"><span class="pre">{comment}</span></code> can bring a long <code class="docutils literal notranslate"><span class="pre">comment.txt</span></code> into it. Shorten the name template (drop <code class="docutils literal notranslate"><span class="pre">{comment}</span></code>, or use <code class="docutils literal notranslate"><span class="pre">{stem}</span></code>), then press <strong>Rerun failed</strong>.</p></td>
+</tr>
+</tbody>
+</table>
+<section id="settings">
+<h2>Settings<a class="headerlink" href="#settings" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">~/.luna_gui_wrapper.json</span></code> holds the Luna path and batch folders (per
+detector), template, flags, TDC reference and theme. On Windows that is
+<code class="docutils literal notranslate"><span class="pre">C:\Users\&lt;you&gt;\.luna_gui_wrapper.json</span></code>. Settings saved before the rename, in
+<code class="docutils literal notranslate"><span class="pre">~/.luna_tpx3_gui_qt.json</span></code>, are read until the new file exists.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="dcr.html" class="btn btn-neutral float-left" title="Dark count rate" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="contribute.html" class="btn btn-neutral float-right" title="Contributing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

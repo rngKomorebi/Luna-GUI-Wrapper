@@ -1,0 +1,241 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.dcr module &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="luna_gui_wrapper.functions.detectors module" href="luna_gui_wrapper.functions.detectors.html" />
+    <link rel="prev" title="luna_gui_wrapper.functions.config module" href="luna_gui_wrapper.functions.config.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">luna_gui_wrapper</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="luna_gui_wrapper.html">luna_gui_wrapper package</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.add_tdc_columns"><code class="docutils literal notranslate"><span class="pre">add_tdc_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.add_timewalk_columns"><code class="docutils literal notranslate"><span class="pre">add_timewalk_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_tdcs"><code class="docutils literal notranslate"><span class="pre">read_tdcs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_timewalk_curve"><code class="docutils literal notranslate"><span class="pre">read_timewalk_curve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_with_tdc"><code class="docutils literal notranslate"><span class="pre">read_with_tdc()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="luna_gui_wrapper.html#luna_gui_wrapper.read_with_timewalk"><code class="docutils literal notranslate"><span class="pre">read_with_timewalk()</span></code></a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="luna_gui_wrapper.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">luna_gui_wrapper</a></li>
+          <li class="breadcrumb-item"><a href="luna_gui_wrapper.html">luna_gui_wrapper package</a></li>
+          <li class="breadcrumb-item"><a href="luna_gui_wrapper.functions.html">luna_gui_wrapper.functions package</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.dcr module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/luna_gui_wrapper.functions.dcr.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-luna_gui_wrapper.functions.dcr">
+<span id="luna-gui-wrapper-functions-dcr-module"></span><h1>luna_gui_wrapper.functions.dcr module<a class="headerlink" href="#module-luna_gui_wrapper.functions.dcr" title="Link to this heading"></a></h1>
+<p>Dark count rate (DCR) of one HDF5 file, per pixel and per cluster.</p>
+<p>One pass over PixelHits and one over Clusters counts hits and clusters per
+pixel and per frame; the rates follow by dividing by a measurement time. That
+time is the one real choice, so there are four, all computed and shown side
+by side:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>frames_toa  – live time from the hits themselves: ToA is sorted, so the</dt><dd><p>N-1 largest ToA gaps are the dead gaps between N frames
+(N = entries in /ExposureTimeBoundaries). Live time is the
+first-to-last span minus those gaps. Needs no metadata.</p>
+</dd>
+</dl>
+</li>
+<li><p>frames_meta – frames x ExposureTime from measurement_metadata.json.</p></li>
+<li><dl class="simple">
+<dt>toa_span    – first to last hit. Counts the dead gaps between frames as</dt><dd><p>live, so it runs ~1 % long for 0.495 s frames every 0.5 s.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>wall_clock  – StartDateTime to StopDateTime from the metadata. Includes</dt><dd><p>start-up and readout overhead; an upper bound.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<p>/ExposureTimeBoundaries holds no times: it is one cumulative row index per
+frame. Those indices do not always match PixelHits (a file whose last
+boundary lies past the end of the table exists), so only their count is
+used; the frame edges come from the ToA gaps.</p>
+<p>Noisy pixels are those with more than k x the median hit count of the
+pixels that counted at all. Silent pixels counted nothing – masked or dead
+when the median is high, possibly just Poisson zeros when it is a few hits.
+The “clean” rates leave both out: noisy pixels from the count, and both
+from the area.</p>
+<p>Qt-free. numpy is imported inside the functions that need it.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.dcr_maps">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">dcr_maps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seconds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisy_k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#dcr_maps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.dcr_maps" title="Link to this definition"></a></dt>
+<dd><p>Per-pixel rates and the masks they imply.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.dcr_report">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">dcr_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'frames_toa'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisy_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#dcr_report"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.dcr_report" title="Link to this definition"></a></dt>
+<dd><p>(lines, maps): the text for the DCR page, and dcr_maps() for plots.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.find_measurement_metadata">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">find_measurement_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#find_measurement_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.find_measurement_metadata" title="Link to this definition"></a></dt>
+<dd><p>measurement_metadata.json for an output .hdf5, as a dict, or None.</p>
+<p>ASI writes &lt;<a href="#id1"><span class="problematic" id="id2">Measurement_</span></a>…&gt;/raw/&lt;file&gt;.tpx3 with the JSON in the
+measurement folder; an .hdf5 written beside its .tpx3 finds it two levels
+up. One written to a separate output folder usually finds none.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.fmt_rate">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">fmt_rate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hz</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#fmt_rate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.fmt_rate" title="Link to this definition"></a></dt>
+<dd><p>3.716 MHz, 457.6 kHz, 56.7 Hz, 0.0123 Hz.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.interp_median">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">interp_median</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#interp_median"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.interp_median" title="Link to this definition"></a></dt>
+<dd><p>Median of integer counts, interpolated within the middle value.</p>
+<p>Per frame a pixel holds a few tens of counts, so the plain median moves
+in whole counts – a ~3 % staircase that hides a 0.3 % drift. Treating
+each integer v as the interval [v - 0.5, v + 0.5) and interpolating
+(the grouped-data median) gives a continuous estimate; it equals v when
+every count is v.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.measure_dcr">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">measure_dcr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">det</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2000000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#measure_dcr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.measure_dcr" title="Link to this definition"></a></dt>
+<dd><p>Count one open h5py file. Returns a dict for dcr_report().</p>
+<p>progress(fraction, text) is called between blocks; return True from it
+to cancel (a None result is returned).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.metadata_times">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">metadata_times</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">meta</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#metadata_times"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.metadata_times" title="Link to this definition"></a></dt>
+<dd><p>(frames, exposure_s, wall_clock_s) from a metadata dict; None where
+a value is missing.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.pick_time">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">pick_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#pick_time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.pick_time" title="Link to this definition"></a></dt>
+<dd><p>(seconds, source used, note). Falls back through the list in order
+when the chosen time is unavailable, and says so.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="luna_gui_wrapper.functions.dcr.write_dcr_csv">
+<span class="sig-prename descclassname"><span class="pre">luna_gui_wrapper.functions.dcr.</span></span><span class="sig-name descname"><span class="pre">write_dcr_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'frames_toa'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisy_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h5_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/luna_gui_wrapper/functions/dcr.html#write_dcr_csv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#luna_gui_wrapper.functions.dcr.write_dcr_csv" title="Link to this definition"></a></dt>
+<dd><p>One row per pixel: x, y, hits, rate, clusters, rate, flags.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="luna_gui_wrapper.functions.config.html" class="btn btn-neutral float-left" title="luna_gui_wrapper.functions.config module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="luna_gui_wrapper.functions.detectors.html" class="btn btn-neutral float-right" title="luna_gui_wrapper.functions.detectors module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

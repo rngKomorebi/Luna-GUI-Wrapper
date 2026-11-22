@@ -1,0 +1,7 @@
+luna\_gui\_wrapper.functions.dcr module
+=======================================
+
+.. automodule:: luna_gui_wrapper.functions.dcr
+   :members:
+   :show-inheritance:
+   :undoc-members:

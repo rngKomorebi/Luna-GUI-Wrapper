@@ -1,0 +1,340 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inspect HDF5 &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="TDC" href="tdc.html" />
+    <link rel="prev" title="Usage" href="usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Inspect HDF5</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-eight-plots">The eight plots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-bottom-panel-summary-dcr-tdc-timewalk">The bottom panel: Summary, DCR, TDC, Timewalk</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#looking-at-the-rows-themselves">Looking at the rows themselves</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ctot-is-the-peak-pixel-not-the-cluster-total">ctot is the peak pixel, not the cluster total</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#plot-styling">Plot styling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Inspect HDF5</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/inspect.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="inspect-hdf5">
+<h1>Inspect HDF5<a class="headerlink" href="#inspect-hdf5" title="Link to this heading"></a></h1>
+<p><img alt="The Inspect HDF5 tab" src="_images/inspect-tab.png" /></p>
+<p>Open any <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> written by <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> or <code class="docutils literal notranslate"><span class="pre">tpx4dump</span></code>. The summary lists the
+datasets, row counts, ToA range and TDC edges, and says which detector the
+file came from: the two are told apart by their ToT values, and each is
+plotted and labelled in its own units (see
+<a class="reference internal" href="intro.html#timepix3-and-timepix4"><span class="std std-ref">Timepix3 and Timepix4</span></a>).</p>
+<section id="the-eight-plots">
+<h2>The eight plots<a class="headerlink" href="#the-eight-plots" title="Link to this heading"></a></h2>
+<p>All eight read the HDF5 in slices, so multi-GB files do not exhaust memory, and
+each opens in its own modeless window, so several can be compared side by side.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Plot</p></th>
+<th class="head"><p>Source</p></th>
+<th class="head"><p>Binning / scale</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Hitmap, pixels</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PixelHits</span></code> <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code></p></td>
+<td><p>counts per pixel; runaway pixels kept off the colour scale</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Hitmap, clusters</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clusters</span></code> <code class="docutils literal notranslate"><span class="pre">cx</span></code>, <code class="docutils literal notranslate"><span class="pre">cy</span></code></p></td>
+<td><p>cluster centroids per pixel; same rule</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ToT, peak pixel</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clusters</span></code> <code class="docutils literal notranslate"><span class="pre">ctot</span></code></p></td>
+<td><p>one bin per ToT step on Timepix3 (25 ns), a whole number of steps on Timepix4; log y</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ToT, cluster total</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clusters</span></code> <code class="docutils literal notranslate"><span class="pre">sum_tot</span></code></p></td>
+<td><p>~300 bins snapped to ToT steps, log y</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Cluster size histogram</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clusters</span></code> <code class="docutils literal notranslate"><span class="pre">size</span></code></p></td>
+<td><p>40 bins over 0–40, linear y</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Time since TDC edge</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clusters</span></code> <code class="docutils literal notranslate"><span class="pre">ctoa</span></code> − <code class="docutils literal notranslate"><span class="pre">TDCEvents</span></code></p></td>
+<td><p>200 bins over one trigger period, log y (Timepix3 only)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Timewalk curve</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PixelHits</span></code> <code class="docutils literal notranslate"><span class="pre">toa</span></code> − its cluster’s <code class="docutils literal notranslate"><span class="pre">ctoa</span></code></p></td>
+<td><p>delay and jitter per 25 ns ToT bin, log y; the stored curve if its ctot cut matches, else measured from the first 8 M hits. See <a class="reference internal" href="timewalk.html"><span class="std std-doc">Timewalk correction</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Time to next cluster</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clusters</span></code> <code class="docutils literal notranslate"><span class="pre">ctoa</span></code>, and <code class="docutils literal notranslate"><span class="pre">ctoa_tw</span></code> when the file has a timewalk correction</p></td>
+<td><p>gap from each cluster to the next in time, over 0–1000 ns (or 3 × eps_t if longer) in bins of whole ToA steps (6.25 ns on Timepix3), log y; raw and timewalk-corrected curves overlaid, dashed line at the Advanced tab’s <code class="docutils literal notranslate"><span class="pre">--eps-t</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><img alt="Hitmap, pixels" src="_images/plot-hitmap-pixels.png" /></p></td>
+<td><p><img alt="Hitmap, clusters" src="_images/plot-hitmap-clusters.png" /></p></td>
+</tr>
+<tr class="row-odd"><td><p><img alt="ToT, peak pixel" src="_images/plot-tot.png" /></p></td>
+<td><p><img alt="ToT, cluster total" src="_images/plot-sumtot.png" /></p></td>
+</tr>
+<tr class="row-even"><td><p><img alt="Cluster size histogram" src="_images/plot-cluster-size.png" /></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p>The hitmaps are sized to the data: 256 x 256 for one Timepix3 chip, 448 x 512
+for Timepix4. One hot or reference pixel can hold a third of all hits; when
+the hottest pixel is more than 5x the 99.9th percentile of the pixels that
+were hit, the colour scale stops at that percentile, the colour bar gets an
+arrow, and the title names how many pixels were clipped and the hottest one,
+for example <code class="docutils literal notranslate"><span class="pre">10</span> <span class="pre">pixel(s)</span> <span class="pre">above</span> <span class="pre">the</span> <span class="pre">colour</span> <span class="pre">scale</span> <span class="pre">--</span> <span class="pre">hottest</span> <span class="pre">(447,</span> <span class="pre">511):</span> <span class="pre">95,004</span></code>.
+Hitmaps without such outliers are drawn exactly as before.</p>
+<p>The two hitmaps answer different questions and are worth comparing: the pixel
+map shows the raw illumination including cluster spread, while the cluster map
+counts each event once at its centroid and so comes out visibly flatter.</p>
+<p>The cluster size histogram is capped at 40 pixels because that is where the
+distribution lives; anything above is counted and stated in the plot title
+rather than dropped without saying so.</p>
+<p><strong>Time to next cluster</strong> shows how well the clustering separated events. Two
+bursts closer than <code class="docutils literal notranslate"><span class="pre">--eps-t</span></code> (and <code class="docutils literal notranslate"><span class="pre">--eps-s</span></code>) are merged into one cluster, so
+the histogram dips just below eps_t and the clusters that should have been
+merged pile up just above it. The timewalk-corrected curve is drawn whenever
+the file has a correction: <code class="docutils literal notranslate"><span class="pre">Clusters/ctoa_tw</span></code>, or computed from
+<code class="docutils literal notranslate"><span class="pre">/TimewalkCurve</span></code> when only the curve was stored. The file does not record
+which <code class="docutils literal notranslate"><span class="pre">--eps-t</span></code> it was processed with, so the dashed line marks the value on
+the Advanced tab now (this GUI’s 300 ns when the field is empty). Gaps beyond
+the plotted range are counted in the title.</p>
+</section>
+<section id="the-bottom-panel-summary-dcr-tdc-timewalk">
+<h2>The bottom panel: Summary, DCR, TDC, Timewalk<a class="headerlink" href="#the-bottom-panel-summary-dcr-tdc-timewalk" title="Link to this heading"></a></h2>
+<p>The panel under the plot buttons has four pages. The plot buttons above only
+read the file; the buttons that write into it sit only on these pages, and
+ask before writing.</p>
+<ul class="simple">
+<li><p><strong>Summary</strong> is filled as soon as a file opens.</p></li>
+<li><p><strong>DCR</strong> computes the dark count rate per pixel and per cluster on request;
+see <a class="reference internal" href="dcr.html"><span class="std std-doc">Dark count rate</span></a>.</p></li>
+<li><p><strong>TDC</strong> shows the file’s TDC edges and the period of each reference.
+<strong>Reference</strong> sets the edge for the TDC columns and the <em>Time since TDC
+edge</em> plot; <strong>Preview frame</strong> and <strong>Add TDC columns to this file</strong> are
+described in <a class="reference internal" href="tdc.html"><span class="std std-doc">TDC columns</span></a>.</p></li>
+<li><p><strong>Timewalk</strong> shows the stored curve and corrected columns, if any. The
+<strong>ctot cut</strong> also sets the <em>Timewalk curve</em> plot; <strong>Add timewalk columns to
+this file</strong> is described in <a class="reference internal" href="timewalk.html"><span class="std std-doc">Timewalk correction</span></a>.</p></li>
+</ul>
+<p>The divider between the <strong>Datasets</strong> table and the plot buttons can be
+dragged; the table always keeps room for the file’s datasets (up to seven).</p>
+</section>
+<section id="looking-at-the-rows-themselves">
+<h2>Looking at the rows themselves<a class="headerlink" href="#looking-at-the-rows-themselves" title="Link to this heading"></a></h2>
+<p>Double-click a dataset in the <strong>Datasets</strong> table (or select it and press
+<strong>View rows…</strong>) to open its rows in a window of their own. It scrolls
+through the whole dataset, not just the head: only the rows on screen are
+read, a chunk at a time, so a 300-million-row <code class="docutils literal notranslate"><span class="pre">PixelHits</span></code> opens as fast as a
+small one. <strong>Row</strong>, <strong>First</strong> and <strong>Last</strong> jump anywhere; the row numbers count
+from 0, as h5py does. Values are shown as stored. Hover a column header for its
+type and unit (on Timepix3 <code class="docutils literal notranslate"><span class="pre">toa</span></code>, <code class="docutils literal notranslate"><span class="pre">ctoa</span></code>, <code class="docutils literal notranslate"><span class="pre">tof</span></code> in 100 fs ticks and <code class="docutils literal notranslate"><span class="pre">tot</span></code> in
+ns; on Timepix4 ToA and ToT both in 1e-16 s), and Ctrl+C copies the selected
+cells as tab-separated text.</p>
+</section>
+<section id="ctot-is-the-peak-pixel-not-the-cluster-total">
+<h2>ctot is the peak pixel, not the cluster total<a class="headerlink" href="#ctot-is-the-peak-pixel-not-the-cluster-total" title="Link to this heading"></a></h2>
+<p>Worth knowing before reading either ToT plot. Checked against <code class="docutils literal notranslate"><span class="pre">PixelHits</span></code> for
+every one of the 692,239 clusters in a Timepix3 reference file, with no
+exceptions:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>What it actually holds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ctot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">max(tot)</span></code> over the cluster’s hits: the <strong>peak pixel</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sum_tot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sum(tot)</span></code> over the cluster’s hits: the <strong>total</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">size</span></code></p></td>
+<td><p>number of hits in the cluster</p></td>
+</tr>
+</tbody>
+</table>
+<p>The giveaway is that <code class="docutils literal notranslate"><span class="pre">ctot</span></code> saturates at 14 425 ns, exactly the single-pixel
+<code class="docutils literal notranslate"><span class="pre">tot</span></code> maximum. Plotted against cluster size the two behave quite differently:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Pearson r</p></th>
+<th class="head"><p>median at size 1</p></th>
+<th class="head"><p>median at size 40</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ctot</span></code></p></td>
+<td><p>0.775</p></td>
+<td><p>100 ns</p></td>
+<td><p>6 775 ns</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sum_tot</span></code></p></td>
+<td><p><strong>0.954</strong></p></td>
+<td><p>100 ns</p></td>
+<td><p><strong>43 450 ns</strong></p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">ctot</span></code> climbs steeply to about size 9 and then flattens: beyond that, extra
+charge spreads into more pixels rather than driving the central one higher, so
+the peak pixel saturates. <code class="docutils literal notranslate"><span class="pre">sum_tot</span></code> stays linear the whole way, as a
+deposited-charge proxy should.</p>
+<p>Use <strong>cluster total</strong> for deposited charge, <strong>peak pixel</strong> for threshold and
+gain studies where the saturation is the point.</p>
+</section>
+<section id="plot-styling">
+<h2>Plot styling<a class="headerlink" href="#plot-styling" title="Link to this heading"></a></h2>
+<p>The plots follow the app theme (<strong>View</strong> → <strong>Theme</strong>). The two Luna themes
+use style sheets from
+<a class="reference external" href="https://github.com/rngKomorebi/komorebi_mpl">komorebi_mpl</a>:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>App theme</p></th>
+<th class="head"><p>Style</p></th>
+<th class="head"><p>Colormap</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Luna dark</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">night_wave</span></code></p></td>
+<td><p>plasma</p></td>
+</tr>
+<tr class="row-odd"><td><p>Luna light</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sci_pure</span></code></p></td>
+<td><p>cividis</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">komorebi_mpl</span></code> (it is in <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>). It is optional: if it
+is not installed these themes’ plots are drawn from the theme’s own colours,
+so nothing breaks.</p>
+<p>The other ten themes, from daplis-rtp, draw the plots in their own colours:
+figure and plot background, ticks and labels, axes frame, grid and five trace
+colours, with inward ticks on all four sides. <strong>View</strong> → <strong>Preferences…</strong>
+changes any of these, the plot font size and the marker size. On a Luna theme
+the change is laid over the komorebi style. Hitmaps never get a grid. A theme
+change applies to plots opened after it; plots already open keep their look.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="usage.html" class="btn btn-neutral float-left" title="Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tdc.html" class="btn btn-neutral float-right" title="TDC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

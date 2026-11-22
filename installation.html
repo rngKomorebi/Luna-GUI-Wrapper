@@ -1,0 +1,487 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage" href="usage.html" />
+    <link rel="prev" title="Overview" href="intro.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#linux">Linux</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#system-packages">1. System packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#install-the-launcher">2. Install the launcher</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#check-it-runs-at-all">3. Check it runs at all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#not-showing-up-in-the-applications-menu">4. Not showing up in the applications menu?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#point-it-at-luna">5. Point it at Luna</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#windows">Windows</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#how-it-works-and-why-wsl">How it works, and why WSL</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-1-python">Step 1: Python</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-2-install-wsl-and-ubuntu">Step 2: install WSL and Ubuntu</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-3-check-the-installation">Step 3: check the installation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#way-1-run-it-from-powershell">Way 1: run it from PowerShell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#way-2-double-click-no-terminal">Way 2: double-click, no terminal</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#from-source">From source</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/installation.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p><strong>Before anything else, have Luna installed</strong>: your own licensed copy from
+ASI, the Ubuntu build, containing <code class="docutils literal notranslate"><span class="pre">bin/tpx3dump</span></code> (Timepix3) or <code class="docutils literal notranslate"><span class="pre">bin/tpx4dump</span></code>
+(Timepix4). None of the options below provides it.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Platform</p></th>
+<th class="head"><p>Setup</p></th>
+<th class="head"><p>Launch</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Ubuntu / Linux</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">./install-linux.sh</span></code>; see <a class="reference internal" href="#linux">Linux</a> for the full five steps</p></td>
+<td><p>Activities menu, or <code class="docutils literal notranslate"><span class="pre">./run_gui.sh</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Windows</strong>, way 1</p></td>
+<td><p>install Python, WSL + Ubuntu, then <code class="docutils literal notranslate"><span class="pre">.\install-windows.ps1</span></code> once for the venv</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">run_gui.bat</span></code> from PowerShell</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Windows</strong>, way 2</p></td>
+<td><p>install Python, WSL + Ubuntu, then <code class="docutils literal notranslate"><span class="pre">.\install-windows.ps1</span></code>: builds the venv and the shortcut</p></td>
+<td><p>double-click the Desktop shortcut</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Any, as a package</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">&quot;.[analysis]&quot;</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">luna-gui-wrapper</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>Windows needs WSL for <strong>every</strong> way; see <a class="reference internal" href="#windows">Windows</a> for why.</p>
+<section id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Link to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Python</span> <span class="mf">3.9</span><span class="o">+</span>
+<span class="n">PySide6</span> <span class="o">&gt;=</span> <span class="mf">6.5</span>      <span class="n">required</span>
+<span class="n">h5py</span><span class="p">,</span> <span class="n">numpy</span>         <span class="n">optional</span> <span class="o">--</span> <span class="n">Inspect</span> <span class="n">tab</span><span class="p">,</span> <span class="n">TDC</span> <span class="n">columns</span>
+<span class="n">pandas</span>              <span class="n">optional</span> <span class="o">--</span> <span class="n">the</span> <span class="n">TDC</span> <span class="n">frame</span> <span class="n">preview</span>
+<span class="n">matplotlib</span>          <span class="n">optional</span> <span class="o">--</span> <span class="n">the</span> <span class="n">six</span> <span class="n">plots</span>
+<span class="n">komorebi_mpl</span>        <span class="n">optional</span> <span class="o">--</span> <span class="n">the</span> <span class="n">Luna</span> <span class="n">themes</span><span class="s1">' plot styles (falls back to the theme'</span><span class="n">s</span> <span class="n">colours</span><span class="p">)</span>
+<span class="n">mplcyberpunk</span>        <span class="n">optional</span> <span class="o">--</span> <span class="n">the</span> <span class="n">glow</span> <span class="n">under</span> <span class="n">plot</span> <span class="n">traces</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">requirements.txt</span></code> covers all of it; so does
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">&quot;.[analysis,themes]&quot;</span></code>, which also installs the app itself; see
+<a class="reference internal" href="#from-source">From source</a>.</p>
+</section>
+<section id="linux">
+<h2>Linux<a class="headerlink" href="#linux" title="Link to this heading"></a></h2>
+<p>Follow these in order. Steps 1 and 2 are what people usually skip, and skipping
+them gives you a launcher that installs cleanly and then does nothing when
+clicked.</p>
+<section id="system-packages">
+<span id="1-system-packages"></span><h3>1. System packages<a class="headerlink" href="#system-packages" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>python3<span class="w"> </span>python3-venv<span class="w"> </span>libxcb-cursor0<span class="w"> </span>desktop-file-utils
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">libxcb-cursor0</span></code>: Qt 6.5+ will not open a window without it, and Qt’s own
+error message (<em>“could not load the Qt platform plugin xcb”</em>) does not name
+the package. On a bare install you may also need <code class="docutils literal notranslate"><span class="pre">libxkbcommon-x11-0</span></code> and
+<code class="docutils literal notranslate"><span class="pre">libegl1</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">desktop-file-utils</span></code>: provides <code class="docutils literal notranslate"><span class="pre">desktop-file-validate</span></code>, which is how you
+check the menu entry in step 4. Not strictly required, but without it a
+malformed entry fails silently.</p></li>
+</ul>
+</section>
+<section id="install-the-launcher">
+<span id="2-install-the-launcher"></span><h3>2. Install the launcher<a class="headerlink" href="#install-the-launcher" title="Link to this heading"></a></h3>
+<p>From inside the GUI folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chmod<span class="w"> </span>+x<span class="w"> </span>run_gui.sh<span class="w"> </span>install-linux.sh
+./install-linux.sh
+</pre></div>
+</div>
+<p>With no flags that is the full install, which is what a fresh machine needs:</p>
+<ul class="simple">
+<li><p>a private venv with everything in <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code> (PySide6, h5py, numpy,
+pandas, matplotlib, komorebi_mpl), which <code class="docutils literal notranslate"><span class="pre">run_gui.sh</span></code> then finds on its own;</p></li>
+<li><p>the Activities-menu launcher;</p></li>
+<li><p>a double-clickable icon on the Desktop.</p></li>
+</ul>
+<p>Everything lands under <code class="docutils literal notranslate"><span class="pre">$HOME</span></code>; no root, nothing system-wide.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Flag</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>(none)</em></p></td>
+<td><p>venv + menu launcher + Desktop icon</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--no-venv</span></code></p></td>
+<td><p>skip the venv (~450 MB, at <code class="docutils literal notranslate"><span class="pre">~/.local/share/luna-gui-wrapper/venv</span></code>) and use the system <code class="docutils literal notranslate"><span class="pre">python3</span></code>; PySide6 must already be installed, and the script warns if it is not</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--no-desktop-icon</span></code></p></td>
+<td><p>skip the icon on the Desktop; the menu launcher is still installed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--uninstall</span></code></p></td>
+<td><p>remove the launcher, icon and desktop shortcut. Leaves the GUI’s own files and the venv alone.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">--with-venv</span></code> and <code class="docutils literal notranslate"><span class="pre">--desktop-icon</span></code> from older instructions are still accepted;
+both are now the default. A launcher from before the rename (<em>Luna Tpx3 GUI</em>)
+is removed.</p>
+<p>Re-running is safe; it overwrites the entry. If you move the folder, run it
+again so the launcher points at the new path.</p>
+</section>
+<section id="check-it-runs-at-all">
+<span id="3-check-it-runs-at-all"></span><h3>3. Check it runs at all<a class="headerlink" href="#check-it-runs-at-all" title="Link to this heading"></a></h3>
+<p>Before worrying about the menu, prove the app itself starts:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./run_gui.sh
+</pre></div>
+</div>
+<p>If a window opens, the launcher problem is purely a menu problem. If it does
+not, you are missing PySide6 or <code class="docutils literal notranslate"><span class="pre">libxcb-cursor0</span></code>; <code class="docutils literal notranslate"><span class="pre">run_gui.sh</span></code> says which, in
+a dialog if it can and on stderr regardless.</p>
+<p><code class="docutils literal notranslate"><span class="pre">run_gui.sh</span></code> picks its interpreter in this order: <code class="docutils literal notranslate"><span class="pre">$PYTHON</span></code>, a <code class="docutils literal notranslate"><span class="pre">.venv</span></code> beside
+the script, the venv <code class="docutils literal notranslate"><span class="pre">install-linux.sh</span></code> built, then the system <code class="docutils literal notranslate"><span class="pre">python3</span></code>.</p>
+</section>
+<section id="not-showing-up-in-the-applications-menu">
+<span id="4-not-showing-up-in-the-applications-menu"></span><h3>4. Not showing up in the applications menu?<a class="headerlink" href="#not-showing-up-in-the-applications-menu" title="Link to this heading"></a></h3>
+<p>Work down this list; each step tells you something the previous one could not.</p>
+<p><strong>Is the file there?</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ls<span class="w"> </span>-l<span class="w"> </span>~/.local/share/applications/luna-gui-wrapper.desktop
+</pre></div>
+</div>
+<p>If it is missing, the installer failed; re-run it and read the output. It
+reports the path it wrote and exits with an error if the write did not happen.</p>
+<p><strong>Is it well-formed?</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>desktop-file-validate<span class="w"> </span>~/.local/share/applications/luna-gui-wrapper.desktop<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>VALID
+</pre></div>
+</div>
+<p>This is the one that finds real problems. A menu silently ignores an entry it
+cannot parse, which looks identical to “the menu has not refreshed yet”.</p>
+<p><strong>Does the menu know about it?</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>update-desktop-database<span class="w"> </span>~/.local/share/applications
+</pre></div>
+</div>
+<p><strong>Is <code class="docutils literal notranslate"><span class="pre">$HOME/.local/share</span></code> even on the search path?</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_DATA_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.local/share</span><span class="si">}</span><span class="s2">"</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="nv">$XDG_DATA_DIRS</span><span class="s2">"</span>
+</pre></div>
+</div>
+<p>The installer honours <code class="docutils literal notranslate"><span class="pre">XDG_DATA_HOME</span></code>. If yours points somewhere unusual, that
+is where the entry went.</p>
+<p><strong>Still nothing?</strong> Log out and back in. GNOME normally notices a new entry
+within seconds, but a stuck shell needs a fresh session, and on Wayland the
+old <code class="docutils literal notranslate"><span class="pre">Alt+F2</span></code> → <code class="docutils literal notranslate"><span class="pre">r</span></code> trick is not available, so logging out is the only way.</p>
+<p>Search for <strong>Luna</strong>; the entry is named <em>Luna GUI Wrapper</em>.</p>
+</section>
+<section id="point-it-at-luna">
+<span id="5-point-it-at-luna"></span><h3>5. Point it at Luna<a class="headerlink" href="#point-it-at-luna" title="Link to this heading"></a></h3>
+<p>On Linux the Luna binary runs directly (backend <code class="docutils literal notranslate"><span class="pre">native</span></code>, nothing else to set
+up). Make sure it is executable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chmod<span class="w"> </span>+x<span class="w"> </span>/path/to/luna-tpx3-.../bin/tpx3dump<span class="w">     </span><span class="c1"># or .../bin/tpx4dump</span>
+</pre></div>
+</div>
+<p>Then continue with <a class="reference internal" href="usage.html#first-run"><span class="std std-ref">First run</span></a>.</p>
+</section>
+</section>
+<section id="windows">
+<h2>Windows<a class="headerlink" href="#windows" title="Link to this heading"></a></h2>
+<section id="how-it-works-and-why-wsl">
+<h3>How it works, and why WSL<a class="headerlink" href="#how-it-works-and-why-wsl" title="Link to this heading"></a></h3>
+<p>The Luna download is the Ubuntu build. Its binaries are Linux ELF executables:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">bin</span><span class="o">/</span><span class="n">tpx3dump</span><span class="p">:</span>  <span class="n">ELF</span> <span class="mi">64</span><span class="o">-</span><span class="n">bit</span> <span class="n">LSB</span> <span class="n">executable</span><span class="p">,</span> <span class="n">x86</span><span class="o">-</span><span class="mi">64</span><span class="p">,</span>
+               <span class="n">interpreter</span> <span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">ld</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">x86</span><span class="o">-</span><span class="mf">64.</span><span class="n">so</span><span class="mf">.2</span>
+</pre></div>
+</div>
+<p>Windows cannot run that. So the split is:</p>
+<ul class="simple">
+<li><p><strong>The GUI runs natively on Windows</strong>, as a normal Python/Qt app.</p></li>
+<li><p><strong>The converter runs inside WSL</strong>, launched as <code class="docutils literal notranslate"><span class="pre">wsl.exe</span> <span class="pre">-e</span> <span class="pre">/mnt/c/...</span></code>, with
+Windows paths translated to <code class="docutils literal notranslate"><span class="pre">/mnt/&lt;drive&gt;/...</span></code> automatically.</p></li>
+</ul>
+<p>You never open the Ubuntu shell yourself. The GUI drives it.</p>
+<p>Without WSL the GUI still starts and everything except <em>running</em> works: build
+the queue, preview the commands, <strong>Export .sh</strong> to run on an Ubuntu box.</p>
+</section>
+<section id="step-1-python">
+<h3>Step 1: Python<a class="headerlink" href="#step-1-python" title="Link to this heading"></a></h3>
+<p>Install Python 3.9 or newer from <a class="reference external" href="https://www.python.org/downloads/">python.org</a>,
+keeping the <em>py launcher</em> option ticked. That is all you install by hand:
+<code class="docutils literal notranslate"><span class="pre">.\install-windows.ps1</span></code> (<a class="reference internal" href="#way-2-double-click-no-terminal">way 2</a>) builds a
+private venv at <code class="docutils literal notranslate"><span class="pre">%USERPROFILE%\venvs\luna-gui-wrapper</span></code> with everything in
+<code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>, and <code class="docutils literal notranslate"><span class="pre">run_gui.bat</span></code> (way 1) uses that same venv.</p>
+<p>To use an interpreter of your own instead, install the dependencies into it:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">py</span> <span class="p">-</span><span class="n">3</span> <span class="n">-m</span> <span class="n">pip</span> <span class="n">install</span> <span class="n">-r</span> <span class="n">requirements</span><span class="p">.</span><span class="n">txt</span>
+<span class="n">py</span> <span class="p">-</span><span class="n">3</span> <span class="n">-c</span> <span class="s2">"import PySide6, h5py, numpy, matplotlib; print('ok')"</span>
+</pre></div>
+</div>
+</section>
+<section id="step-2-install-wsl-and-ubuntu">
+<h3>Step 2: install WSL and Ubuntu<a class="headerlink" href="#step-2-install-wsl-and-ubuntu" title="Link to this heading"></a></h3>
+<p>In PowerShell (no administrator rights needed with current WSL):</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">wsl</span> <span class="p">-</span><span class="n">-install</span> <span class="n">-d</span> <span class="n">Ubuntu</span>
+</pre></div>
+</div>
+<p>It downloads ~500 MB and then asks for a UNIX username and password. These are
+new credentials for the Linux system, unrelated to your Windows account. On
+older Windows builds WSL may ask for a reboot; current ones do not.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Ubuntu</span></code> gives you the newest LTS. Luna for Timepix3 is built for Ubuntu
+20.04, which Microsoft no longer offers, but that is fine: <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> links
+only against core glibc and libgcc</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">libgcc_s</span><span class="o">.</span><span class="n">so</span><span class="mf">.1</span>  <span class="n">libpthread</span><span class="o">.</span><span class="n">so</span><span class="mf">.0</span>  <span class="n">libm</span><span class="o">.</span><span class="n">so</span><span class="mf">.6</span>  <span class="n">libdl</span><span class="o">.</span><span class="n">so</span><span class="mf">.2</span>  <span class="n">libc</span><span class="o">.</span><span class="n">so</span><span class="mf">.6</span>
+</pre></div>
+</div>
+<p>and glibc is forward-compatible, so a 20.04 build runs unchanged on 24.04.
+<strong>No extra <code class="docutils literal notranslate"><span class="pre">apt</span> <span class="pre">install</span></code> is needed.</strong> If you would rather stay close to the
+build target, <code class="docutils literal notranslate"><span class="pre">wsl</span> <span class="pre">--install</span> <span class="pre">-d</span> <span class="pre">Ubuntu-22.04</span></code> also works.</p>
+</section>
+<section id="step-3-check-the-installation">
+<h3>Step 3: check the installation<a class="headerlink" href="#step-3-check-the-installation" title="Link to this heading"></a></h3>
+<p>Three checks, each answering a different question.</p>
+<p><strong>Is a distribution installed and running?</strong></p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">wsl</span> <span class="p">-</span><span class="n">-list</span> <span class="p">-</span><span class="n">-verbose</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">NAME</span>      <span class="n">STATE</span>      <span class="n">VERSION</span>
+<span class="o">*</span> <span class="n">Ubuntu</span>    <span class="n">Running</span>    <span class="mi">2</span>
+</pre></div>
+</div>
+<p><strong>Can WSL execute the Luna binary?</strong> Give it the <code class="docutils literal notranslate"><span class="pre">/mnt/...</span></code> form of your own
+Luna path:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">wsl</span> <span class="n">-e</span> <span class="p">/</span><span class="n">mnt</span><span class="p">/</span><span class="n">c</span><span class="p">/</span><span class="n">Users</span><span class="p">/&lt;</span><span class="n">you</span><span class="p">&gt;/</span><span class="n">path</span><span class="p">/</span><span class="n">to</span><span class="p">/</span><span class="n">luna-tpx3</span><span class="p">-.../</span><span class="n">bin</span><span class="p">/</span><span class="n">tpx3dump</span> <span class="p">-</span><span class="n">-version</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Tpx3Dump</span> <span class="mf">0.3.2</span>
+</pre></div>
+</div>
+<p>If that prints a version, the backend works. No <code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">+x</span></code> is needed: <code class="docutils literal notranslate"><span class="pre">/mnt/c</span></code>
+is mounted with everything executable.</p>
+<p><strong>Can WSL see your data?</strong> For data on <code class="docutils literal notranslate"><span class="pre">D:</span></code>:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">wsl</span> <span class="n">-e</span> <span class="nb">ls </span><span class="s2">"/mnt/d/tpx3cam data"</span>
+</pre></div>
+</div>
+<p>WSL auto-mounts <strong>fixed</strong> disks only. A USB stick, card reader or other
+removable drive never appears under <code class="docutils literal notranslate"><span class="pre">/mnt</span></code>, so the converter cannot open
+anything stored on it: <code class="docutils literal notranslate"><span class="pre">tpx3dump</span></code> logs <code class="docutils literal notranslate"><span class="pre">Skipping</span> <span class="pre">file</span> <span class="pre">...</span> <span class="pre">as</span> <span class="pre">it</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">&quot;Tpx3&quot;</span> <span class="pre">extension</span> <span class="pre">and</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">a</span> <span class="pre">directory</span></code> and then panics with <code class="docutils literal notranslate"><span class="pre">index</span> <span class="pre">out</span> <span class="pre">of</span> <span class="pre">bounds:</span> <span class="pre">the</span> <span class="pre">len</span> <span class="pre">is</span> <span class="pre">0</span></code>. The GUI checks for this before a run and offers to
+mount the drive for you; the equivalent by hand, for <code class="docutils literal notranslate"><span class="pre">E:</span></code>, is</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">wsl</span> <span class="n">-u</span> <span class="n">root</span> <span class="n">-e</span> <span class="n">bash</span> <span class="n">-c</span> <span class="s2">"mkdir -p /mnt/e &amp;&amp; mount -t drvfs E: /mnt/e"</span>
+</pre></div>
+</div>
+<p>No password is needed, and the mount lasts until WSL next shuts down.</p>
+<p><strong>From inside the GUI:</strong> <em>Advanced</em> tab → <strong>Check install</strong>. It re-detects the
+backend, then runs the converter’s <code class="docutils literal notranslate"><span class="pre">--version</span></code> and <code class="docutils literal notranslate"><span class="pre">process</span> <span class="pre">--help</span></code> and dumps
+both into the log. No restart is needed after installing WSL.</p>
+<p>A correct setup looks like this: the folder pointing at <code class="docutils literal notranslate"><span class="pre">bin/</span></code>, and a green
+<code class="docutils literal notranslate"><span class="pre">OK</span></code> line naming the backend and the translated <code class="docutils literal notranslate"><span class="pre">/mnt/c/...</span></code> path:</p>
+<p><img alt="Luna installation configured, backend OK via WSL" src="_images/luna-setup-ok.png" /></p>
+<p>If that line is amber or red it says why: no Luna folder set, no converter
+under it, or no WSL distribution installed.</p>
+</section>
+<section id="way-1-run-it-from-powershell">
+<h3>Way 1: run it from PowerShell<a class="headerlink" href="#way-1-run-it-from-powershell" title="Link to this heading"></a></h3>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nb">cd </span><span class="s2">"C:\path\to\Luna-GUI-Wrapper"</span>
+<span class="p">.\</span><span class="n">run_gui</span><span class="p">.</span><span class="n">bat</span>
+</pre></div>
+</div>
+<p>or, from anywhere, in one line:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">&amp;</span> <span class="s2">"C:\path\to\Luna-GUI-Wrapper\run_gui.bat"</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> is PowerShell’s call operator, needed whenever the command is a quoted
+string. The <code class="docutils literal notranslate"><span class="pre">.bat</span></code> picks its interpreter in this order: <code class="docutils literal notranslate"><span class="pre">%LUNA_PYTHON%</span></code>, a
+<code class="docutils literal notranslate"><span class="pre">.venv</span></code> beside it, the venv <code class="docutils literal notranslate"><span class="pre">install-windows.ps1</span></code> builds
+(<code class="docutils literal notranslate"><span class="pre">%USERPROFILE%\venvs\luna-gui-wrapper</span></code>, or <code class="docutils literal notranslate"><span class="pre">luna-tpx3-gui</span></code> from before the
+rename), <code class="docutils literal notranslate"><span class="pre">%USERPROFILE%\venvs\tpx4cam</span></code>, then <code class="docutils literal notranslate"><span class="pre">py</span> <span class="pre">-3</span></code>. If you gave the installer
+a different <code class="docutils literal notranslate"><span class="pre">-VenvName</span></code>, point <code class="docutils literal notranslate"><span class="pre">LUNA_PYTHON</span></code> at that venv’s <code class="docutils literal notranslate"><span class="pre">python.exe</span></code>.</p>
+<p>It uses <code class="docutils literal notranslate"><span class="pre">python.exe</span></code> deliberately, so a startup error stays readable in the
+console. Do not close that console while the GUI is running: it kills the GUI.</p>
+</section>
+<section id="way-2-double-click-no-terminal">
+<h3>Way 2: double-click, no terminal<a class="headerlink" href="#way-2-double-click-no-terminal" title="Link to this heading"></a></h3>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">.\</span><span class="nb">install-windows</span><span class="p">.</span><span class="n">ps1</span>
+</pre></div>
+</div>
+<p>That builds a private venv with everything in <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code> at
+<code class="docutils literal notranslate"><span class="pre">C:\Users\&lt;you&gt;\venvs\luna-gui-wrapper</span></code> (~450 MB), then creates a <strong>Luna GUI
+Wrapper</strong> shortcut on your Desktop. Double-click it and the app starts: no
+PowerShell, no <code class="docutils literal notranslate"><span class="pre">cd</span></code>, no console window, and WSL still gets driven underneath
+exactly as before. No administrator rights are needed.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Flag</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>(none)</em></p></td>
+<td><p>venv + Desktop shortcut</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-StartMenu</span></code></p></td>
+<td><p>also add it to the Start Menu, so it is searchable</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-VenvName</span> <span class="pre">&lt;name&gt;</span></code></p></td>
+<td><p>build the venv at <code class="docutils literal notranslate"><span class="pre">%USERPROFILE%\venvs\&lt;name&gt;</span></code> instead</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-NoVenv</span></code></p></td>
+<td><p>skip the venv and use a Python that already has PySide6 (an earlier venv, <code class="docutils literal notranslate"><span class="pre">venvs\tpx4cam</span></code>, or <code class="docutils literal notranslate"><span class="pre">pythonw.exe</span></code> on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-Python</span> <span class="pre">&lt;path&gt;</span></code></p></td>
+<td><p>use this specific <code class="docutils literal notranslate"><span class="pre">pythonw.exe</span></code>; implies <code class="docutils literal notranslate"><span class="pre">-NoVenv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-Uninstall</span></code></p></td>
+<td><p>remove the shortcuts. Leaves the GUI’s own files and the venv alone.</p></td>
+</tr>
+</tbody>
+</table>
+<p>What it does: builds the venv from whichever Python 3.9+ the <code class="docutils literal notranslate"><span class="pre">py</span></code> launcher
+finds (re-running reuses it and brings its packages up to date), checks that
+the interpreter can actually <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">PySide6</span></code> (this matters, since
+<code class="docutils literal notranslate"><span class="pre">pythonw.exe</span></code> has no console and an import error would be silent), and writes
+a <code class="docutils literal notranslate"><span class="pre">.lnk</span></code> pointing at the venv’s <code class="docutils literal notranslate"><span class="pre">pythonw.exe</span></code>. A shortcut from before the
+rename (<em>Luna Tpx3 GUI</em>) is removed. Right-click the shortcut → <em>Pin to
+taskbar</em> if you want it permanently to hand.</p>
+<p>After updating the GUI (a new release, or <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code>), re-run
+<code class="docutils literal notranslate"><span class="pre">.\install-windows.ps1</span></code> if <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code> changed; otherwise the shortcut
+already runs the new code.</p>
+<p>There is deliberately no standalone <code class="docutils literal notranslate"><span class="pre">.exe</span></code>; see the
+<a class="reference internal" href="license.html"><span class="std std-doc">licence note</span></a>.</p>
+</section>
+</section>
+<section id="from-source">
+<h2>From source<a class="headerlink" href="#from-source" title="Link to this heading"></a></h2>
+<p>A fresh virtual environment is recommended:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/rngKomorebi/Luna-GUI-Wrapper
+<span class="nb">cd</span><span class="w"> </span>Luna-GUI-Wrapper
+python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="c1"># Windows:  .venv\Scripts\activate</span>
+<span class="c1"># Linux:    source .venv/bin/activate</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[analysis]"</span>
+</pre></div>
+</div>
+<p>Then any of these starts the GUI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>luna-gui-wrapper<span class="w">             </span><span class="c1"># console script installed by pip</span>
+python<span class="w"> </span>-m<span class="w"> </span>luna_gui_wrapper
+python<span class="w"> </span>src/main.py<span class="w">           </span><span class="c1"># works without installing, given the dependencies</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code> without the <code class="docutils literal notranslate"><span class="pre">[analysis]</span></code> extra installs PySide6 only:
+enough to build and run batches, but the Inspect tab stays inert. <code class="docutils literal notranslate"><span class="pre">run_gui.bat</span></code>
+and <code class="docutils literal notranslate"><span class="pre">run_gui.sh</span></code> pick up a <code class="docutils literal notranslate"><span class="pre">.venv</span></code> beside them automatically.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="intro.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="usage.html" class="btn btn-neutral float-right" title="Usage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

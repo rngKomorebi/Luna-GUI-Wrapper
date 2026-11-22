@@ -1,0 +1,268 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.failures &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.failures</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for luna_gui_wrapper.functions.failures</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Why a converter run failed, and what to change before running it again.</span>
+
+<span class="sd">Qt-free. The GUI hands over the end of the converter's output plus the job's</span>
+<span class="sd">paths; diagnose() picks the known cause out of it. A cause tied to the current</span>
+<span class="sd">settings (an output name that is too long) can be checked again later with</span>
+<span class="sd">still_fails(), so a rerun can warn when nothing has been changed yet.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># The longest file name Windows (NTFS: 255 UTF-16 units) and Linux (ext4: 255</span>
+<span class="c1"># bytes) accept. A path component over it cannot be created at all.</span>
+<span class="n">NAME_MAX</span> <span class="o">=</span> <span class="mi">255</span>
+
+
+<div class="viewcode-block" id="Failure">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.Failure">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Failure</span><span class="p">:</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>          <span class="c1"># short key, groups failures with one cause</span>
+    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>        <span class="c1"># what happened, one line</span>
+    <span class="n">advice</span><span class="p">:</span> <span class="nb">str</span>        <span class="c1"># what to change before rerunning</span></div>
+
+
+
+<div class="viewcode-block" id="name_length">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.name_length">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">name_length</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Length of the file name as the stricter of the two file systems counts</span>
+<span class="sd">    it: characters for NTFS, UTF-8 bytes for Linux."""</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)))</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_too_long</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">ctx</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Failure</span><span class="p">:</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">name_length</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctx</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"comment"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="n">culprit</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">" This folder's comment alone adds </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span><span class="si">}</span><span class="s2"> characters."</span>
+               <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">60</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span>
+        <span class="s2">"name_too_long"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"output name too long: </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> characters, the limit is </span><span class="si">{</span><span class="n">NAME_MAX</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"Shorten the name template on the Advanced tab, e.g. drop </span><span class="si">{comment}</span><span class="s2"> "</span>
+        <span class="s2">"or use </span><span class="si">{stem}</span><span class="s2">."</span> <span class="o">+</span> <span class="n">culprit</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_panic_message</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The line after Rust's `thread 'main' panicked at ...:` -- the message."""</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ln</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">"panicked at"</span> <span class="ow">in</span> <span class="n">ln</span><span class="p">:</span>
+            <span class="n">rest</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"panicked at"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">nxt</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="k">else</span> <span class="s2">""</span>
+            <span class="k">if</span> <span class="n">rest</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">":"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">nxt</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">nxt</span>
+            <span class="k">return</span> <span class="n">rest</span>
+    <span class="k">return</span> <span class="s2">""</span>
+
+
+<div class="viewcode-block" id="diagnose">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.diagnose">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">diagnose</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="n">code</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">src</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ctx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Failure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Name the cause of one failed run.</span>
+
+<span class="sd">    lines: the converter's last output lines (plus any error lines seen</span>
+<span class="sd">    earlier); code: its exit code (-1 if it never ran); err: a message from</span>
+<span class="sd">    the GUI side when there is no exit code to go on.</span>
+<span class="sd">    """</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">ln</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">lines</span> <span class="k">if</span> <span class="n">ln</span> <span class="ow">and</span> <span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+    <span class="n">low</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">exe_hint</span> <span class="o">=</span> <span class="s2">"Check the Luna folder on the Advanced tab (Set up Luna...)."</span>
+
+    <span class="k">if</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">"not found"</span> <span class="ow">in</span> <span class="n">err</span> <span class="ow">or</span> <span class="s2">"not runnable"</span> <span class="ow">in</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"not_started"</span><span class="p">,</span> <span class="s2">"the converter could not be started"</span><span class="p">,</span>
+                           <span class="n">exe_hint</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dst</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">name_length</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">NAME_MAX</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_too_long</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">ctx</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"gui_error"</span><span class="p">,</span> <span class="n">err</span><span class="p">,</span>
+                       <span class="s2">"Check that the output folder can be created and written."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">dst</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">name_length</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">NAME_MAX</span><span class="p">:</span>
+        <span class="c1"># Whatever the converter printed, this name can never be created.</span>
+        <span class="k">return</span> <span class="n">_too_long</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">ctx</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s2">"no space left on device"</span> <span class="ow">in</span> <span class="n">low</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"disk_full"</span><span class="p">,</span> <span class="s2">"the disk is full"</span><span class="p">,</span>
+                       <span class="s2">"Free space on the output drive (an .hdf5 can be 5-8x "</span>
+                       <span class="s2">"the size of its raw file), or choose another output "</span>
+                       <span class="s2">"folder."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s2">"h5fcreate"</span> <span class="ow">in</span> <span class="n">low</span> <span class="ow">or</span> <span class="s2">"failed to open hdf5"</span> <span class="ow">in</span> <span class="n">low</span> <span class="ow">or</span> <span class="s2">"unable to create file"</span> <span class="ow">in</span> <span class="n">low</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">"lock"</span> <span class="ow">in</span> <span class="n">low</span> <span class="ow">or</span> <span class="s2">"resource temporarily unavailable"</span> <span class="ow">in</span> <span class="n">low</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"locked"</span><span class="p">,</span> <span class="s2">"the output .hdf5 is open in another program"</span><span class="p">,</span>
+                           <span class="s2">"Close it in HDFView, Python or this app's Inspect "</span>
+                           <span class="s2">"tab."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">"permission denied"</span> <span class="ow">in</span> <span class="n">low</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"no_permission"</span><span class="p">,</span>
+                           <span class="s2">"no permission to write in the output folder"</span><span class="p">,</span>
+                           <span class="s2">"Choose an output folder you can write to."</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"cannot_create"</span><span class="p">,</span> <span class="s2">"the output .hdf5 could not be created"</span><span class="p">,</span>
+                       <span class="s2">"Check that the output folder exists and is writable, "</span>
+                       <span class="s2">"that the file is not open elsewhere, and that the "</span>
+                       <span class="s2">"disk is not full."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s2">"index out of bounds: the len is 0"</span> <span class="ow">in</span> <span class="n">low</span> <span class="ow">or</span> <span class="s2">"skipping file"</span> <span class="ow">in</span> <span class="n">low</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"input_unreadable"</span><span class="p">,</span> <span class="s2">"the converter could not read the input file"</span><span class="p">,</span>
+                       <span class="s2">"On Windows this usually means WSL cannot see the drive "</span>
+                       <span class="s2">"(USB disks): run again and accept the offer to mount "</span>
+                       <span class="s2">"it, or copy the data to an internal disk."</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">"error: (unexpected argument|invalid value|unrecognized|"</span>
+                    <span class="sa">r</span><span class="s2">"the argument|a value is required)"</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"bad_arguments"</span><span class="p">,</span> <span class="s2">"the converter rejected the command line: "</span>
+                           <span class="o">+</span> <span class="n">s</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>
+                           <span class="s2">"Fix the flag on the Advanced tab (Advanced flags or "</span>
+                           <span class="s2">"extra arguments)."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">code</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">137</span><span class="p">,</span> <span class="o">-</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"killed"</span><span class="p">,</span> <span class="s2">"the converter was killed (often out of memory)"</span><span class="p">,</span>
+                       <span class="s2">"Close other programs, or lower --n-threads / "</span>
+                       <span class="s2">"--hdf5-chunk-size on the Advanced tab."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"no_output"</span><span class="p">,</span> <span class="s2">"the converter finished but wrote no output"</span><span class="p">,</span>
+                       <span class="s2">"Read this file's log above; the input may hold no data."</span><span class="p">)</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">_panic_message</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">msg</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"crash"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"the converter crashed: </span><span class="si">{</span><span class="n">msg</span><span class="p">[:</span><span class="mi">160</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                       <span class="s2">"Read this file's log above. If it repeats, report it to "</span>
+                       <span class="s2">"ASI with the log."</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Failure</span><span class="p">(</span><span class="s2">"exit_code"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"the converter stopped with exit code </span><span class="si">{</span><span class="n">code</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                   <span class="s2">"Read this file's log above for the cause."</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="still_fails">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.failures.html#luna_gui_wrapper.functions.failures.still_fails">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">still_fails</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Would a cause tied to the settings hit again with the job as it is now?</span>
+<span class="sd">    Only the name length can be checked ahead of a run; anything else is</span>
+<span class="sd">    left to the rerun itself."""</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"name_too_long"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">dst</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">name_length</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">NAME_MAX</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

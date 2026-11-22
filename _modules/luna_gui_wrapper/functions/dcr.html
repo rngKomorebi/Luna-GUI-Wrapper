@@ -1,0 +1,801 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luna_gui_wrapper.functions.dcr &mdash; Luna GUI Wrapper 0.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Luna GUI Wrapper
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../inspect.html">Inspect HDF5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tdc.html">TDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../timewalk.html">Timewalk correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dcr.html">Dark count rate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API (Qt-free core):</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">luna_gui_wrapper</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Luna GUI Wrapper</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">luna_gui_wrapper.functions.dcr</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for luna_gui_wrapper.functions.dcr</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Dark count rate (DCR) of one HDF5 file, per pixel and per cluster.</span>
+
+<span class="sd">One pass over PixelHits and one over Clusters counts hits and clusters per</span>
+<span class="sd">pixel and per frame; the rates follow by dividing by a measurement time. That</span>
+<span class="sd">time is the one real choice, so there are four, all computed and shown side</span>
+<span class="sd">by side:</span>
+
+<span class="sd">- frames_toa  -- live time from the hits themselves: ToA is sorted, so the</span>
+<span class="sd">                 N-1 largest ToA gaps are the dead gaps between N frames</span>
+<span class="sd">                 (N = entries in /ExposureTimeBoundaries). Live time is the</span>
+<span class="sd">                 first-to-last span minus those gaps. Needs no metadata.</span>
+<span class="sd">- frames_meta -- frames x ExposureTime from measurement_metadata.json.</span>
+<span class="sd">- toa_span    -- first to last hit. Counts the dead gaps between frames as</span>
+<span class="sd">                 live, so it runs ~1 % long for 0.495 s frames every 0.5 s.</span>
+<span class="sd">- wall_clock  -- StartDateTime to StopDateTime from the metadata. Includes</span>
+<span class="sd">                 start-up and readout overhead; an upper bound.</span>
+
+<span class="sd">/ExposureTimeBoundaries holds no times: it is one cumulative row index per</span>
+<span class="sd">frame. Those indices do not always match PixelHits (a file whose last</span>
+<span class="sd">boundary lies past the end of the table exists), so only their count is</span>
+<span class="sd">used; the frame edges come from the ToA gaps.</span>
+
+<span class="sd">Noisy pixels are those with more than k x the median hit count of the</span>
+<span class="sd">pixels that counted at all. Silent pixels counted nothing -- masked or dead</span>
+<span class="sd">when the median is high, possibly just Poisson zeros when it is a few hits.</span>
+<span class="sd">The "clean" rates leave both out: noisy pixels from the count, and both</span>
+<span class="sd">from the area.</span>
+
+<span class="sd">Qt-free. numpy is imported inside the functions that need it.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># Timepix3 and Timepix4 both have 55 um square pixels.</span>
+<span class="n">PIXEL_PITCH_MM</span> <span class="o">=</span> <span class="mf">0.055</span>
+<span class="n">PIXEL_AREA_MM2</span> <span class="o">=</span> <span class="n">PIXEL_PITCH_MM</span> <span class="o">**</span> <span class="mi">2</span>
+
+<span class="c1"># (rows, cols) of one chip; the maps grow if the data reach further.</span>
+<span class="n">SENSOR_SHAPE</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"tpx3"</span><span class="p">:</span> <span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span> <span class="s2">"tpx4"</span><span class="p">:</span> <span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">448</span><span class="p">)}</span>
+
+<span class="n">TIME_SOURCES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"frames_toa"</span><span class="p">:</span> <span class="s2">"Frames, live time from ToA"</span><span class="p">,</span>
+    <span class="s2">"frames_meta"</span><span class="p">:</span> <span class="s2">"Frames x exposure (metadata)"</span><span class="p">,</span>
+    <span class="s2">"toa_span"</span><span class="p">:</span> <span class="s2">"ToA span, first to last hit"</span><span class="p">,</span>
+    <span class="s2">"wall_clock"</span><span class="p">:</span> <span class="s2">"Wall clock, Start to Stop (metadata)"</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">DCR_DEFAULT_TIME_SOURCE</span> <span class="o">=</span> <span class="s2">"frames_toa"</span>
+<span class="n">DCR_DEFAULT_NOISY_K</span> <span class="o">=</span> <span class="mf">10.0</span>
+
+<span class="c1"># Frame breaks are trusted only when the narrowest of the N-1 widest ToA gaps</span>
+<span class="c1"># is this many times the next widest one, i.e. the frame gaps stand clear of</span>
+<span class="c1"># every pause inside a frame. Hits come in bursts (a cluster is ~8 hits within</span>
+<span class="c1"># ns), so the mean hit spacing is no yardstick: in a 3.7 MHz dark run 437 k</span>
+<span class="c1"># gaps exceed 20x the mean, the widest pause inside a frame is 154x, and the</span>
+<span class="c1"># frame gaps are 18 400x.</span>
+<span class="n">FRAME_SEPARATION</span> <span class="o">=</span> <span class="mf">10.0</span>
+
+<span class="c1"># While reading, the per-frame maps are cut at every gap wider than this many</span>
+<span class="c1"># times the running mean hit spacing -- far above any pause inside a frame</span>
+<span class="c1"># (154x above) and far below a frame gap (18 400x).</span>
+<span class="n">FRAME_CUT_RATIO</span> <span class="o">=</span> <span class="mf">1000.0</span>
+
+<span class="c1"># Equal-width time bins for the rate-vs-time plot of a single-frame file.</span>
+<span class="n">TIME_BINS</span> <span class="o">=</span> <span class="mi">100</span>
+
+<span class="c1"># The rate-vs-time plot shows the median pixel per frame (or time bin), which</span>
+<span class="c1"># needs one map per frame. They are built in the same pass: a new map starts</span>
+<span class="c1"># at every ToA gap wider than FRAME_CUT_RATIO x the running mean spacing,</span>
+<span class="c1"># and the pieces are merged into frames once the frame gaps are known. Above</span>
+<span class="c1"># this many map cells (int32) per table the per-frame medians are skipped.</span>
+<span class="n">MAX_SLOT_CELLS</span> <span class="o">=</span> <span class="mi">32_000_000</span>
+
+<span class="n">READ_STEP</span> <span class="o">=</span> <span class="mi">2_000_000</span>
+
+
+<span class="c1"># -- metadata -------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="find_measurement_metadata">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.find_measurement_metadata">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_measurement_metadata</span><span class="p">(</span><span class="n">h5_path</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""measurement_metadata.json for an output .hdf5, as a dict, or None.</span>
+
+<span class="sd">    ASI writes &lt;Measurement_...&gt;/raw/&lt;file&gt;.tpx3 with the JSON in the</span>
+<span class="sd">    measurement folder; an .hdf5 written beside its .tpx3 finds it two levels</span>
+<span class="sd">    up. One written to a separate output folder usually finds none.</span>
+<span class="sd">    """</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">h5_path</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">up</span> <span class="ow">in</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">parent</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">parents</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="n">levels</span><span class="p">]:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">up</span> <span class="o">/</span> <span class="s2">"measurement_metadata.json"</span>
+        <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"replace"</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">meta</span><span class="p">[</span><span class="s2">"_path"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">meta</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="metadata_times">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.metadata_times">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">metadata_times</span><span class="p">(</span><span class="n">meta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""(frames, exposure_s, wall_clock_s) from a metadata dict; None where</span>
+<span class="sd">    a value is missing."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">meta</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="n">conf</span> <span class="o">=</span> <span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Detector"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Config"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">frames</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"NumberOfFrames"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"nTriggers"</span><span class="p">)</span>
+    <span class="n">exposure</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ExposureTime"</span><span class="p">)</span>
+    <span class="n">wall</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">wall</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"StopDateTime"</span><span class="p">]))</span>
+                <span class="o">-</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"StartDateTime"</span><span class="p">]))</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frames</span><span class="p">)</span> <span class="k">if</span> <span class="n">frames</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">frames</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">exposure</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">exposure</span><span class="p">)</span> <span class="k">if</span> <span class="n">exposure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">exposure</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">frames</span><span class="p">,</span> <span class="n">exposure</span><span class="p">,</span> <span class="n">wall</span></div>
+
+
+
+<span class="c1"># -- the pass over the file -----------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fields</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Rows a:b of only these fields -- one compound read, no full copy."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">names</span><span class="p">))[</span><span class="n">a</span><span class="p">:</span><span class="n">b</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>                       <span class="c1"># h5py &lt; 3</span>
+        <span class="k">return</span> <span class="n">ds</span><span class="p">[</span><span class="n">a</span><span class="p">:</span><span class="n">b</span><span class="p">][</span><span class="nb">list</span><span class="p">(</span><span class="n">names</span><span class="p">)]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_grow</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">need_h</span><span class="p">,</span> <span class="n">need_w</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">need_h</span> <span class="o">&lt;=</span> <span class="n">h</span> <span class="ow">and</span> <span class="n">need_w</span> <span class="o">&lt;=</span> <span class="n">w</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">img</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">max</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">need_h</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">need_w</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">[:</span><span class="n">h</span><span class="p">,</span> <span class="p">:</span><span class="n">w</span><span class="p">]</span> <span class="o">=</span> <span class="n">img</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_add_xy</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">img</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">img</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">w</span> <span class="o">+</span> <span class="n">x</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">h</span> <span class="o">*</span> <span class="n">w</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">img</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_add_slots</span><span class="p">(</span><span class="n">maps</span><span class="p">,</span> <span class="n">slot</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Add hits to one int32 map per slot (frame, map piece or time bin)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">slot</span><span class="p">):</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">slot</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">slot</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">slot</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)</span>
+        <span class="n">slot</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">slot</span><span class="p">[</span><span class="n">o</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="n">o</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">o</span><span class="p">]</span>
+    <span class="n">cuts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">slot</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">cuts</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">cuts</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">slot</span><span class="p">)]):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">slot</span><span class="p">[</span><span class="n">a</span><span class="p">])</span>
+        <span class="n">mp</span> <span class="o">=</span> <span class="n">maps</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int32"</span><span class="p">)</span>
+        <span class="n">maps</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">_add_xy</span><span class="p">(</span><span class="n">mp</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="n">a</span><span class="p">:</span><span class="n">b</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">a</span><span class="p">:</span><span class="n">b</span><span class="p">],</span> <span class="n">np</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="interp_median">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.interp_median">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">interp_median</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Median of integer counts, interpolated within the middle value.</span>
+
+<span class="sd">    Per frame a pixel holds a few tens of counts, so the plain median moves</span>
+<span class="sd">    in whole counts -- a ~3 % staircase that hides a 0.3 % drift. Treating</span>
+<span class="sd">    each integer v as the interval [v - 0.5, v + 0.5) and interpolating</span>
+<span class="sd">    (the grouped-data median) gives a continuous estimate; it equals v when</span>
+<span class="sd">    every count is v.</span>
+<span class="sd">    """</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">c</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">c</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)[</span><span class="n">c</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">below</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">c</span> <span class="o">&lt;</span> <span class="n">v</span><span class="p">))</span>
+    <span class="n">at</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">c</span> <span class="o">==</span> <span class="n">v</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">+</span> <span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">below</span><span class="p">)</span> <span class="o">/</span> <span class="n">at</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_slot_medians</span><span class="p">(</span><span class="n">maps</span><span class="p">,</span> <span class="n">n_slots</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""interp_median over the masked pixels, per slot; 0 for an empty slot."""</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_slots</span><span class="p">)</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">mp</span> <span class="ow">in</span> <span class="n">maps</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">mp</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">mp</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">hh</span><span class="p">,</span> <span class="n">ww</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">hh</span><span class="p">,</span> <span class="n">ww</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">interp_median</span><span class="p">(</span><span class="n">mp</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">np</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_top_gaps</span><span class="p">(</span><span class="n">best</span><span class="p">,</span> <span class="n">cand</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">np</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Keep the k largest gaps seen so far. best and cand are tuples of</span>
+<span class="sd">    equal-length arrays, the gap sizes first."""</span>
+    <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">cand</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">best</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cand</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">k</span><span class="p">:</span>
+        <span class="n">pick</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">cand</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">cand</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">k</span><span class="p">)[</span><span class="o">-</span><span class="n">k</span><span class="p">:]</span>
+        <span class="n">cand</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="n">pick</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cand</span><span class="p">)</span>
+    <span class="n">merged</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">])</span> <span class="k">for</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">best</span><span class="p">,</span> <span class="n">cand</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">merged</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">k</span><span class="p">:</span>
+        <span class="n">pick</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">merged</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">merged</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">k</span><span class="p">)[</span><span class="o">-</span><span class="n">k</span><span class="p">:]</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">pick</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">merged</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">merged</span>
+
+
+<div class="viewcode-block" id="measure_dcr">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.measure_dcr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">measure_dcr</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">det</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">READ_STEP</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Count one open h5py file. Returns a dict for dcr_report().</span>
+
+<span class="sd">    progress(fraction, text) is called between blocks; return True from it</span>
+<span class="sd">    to cancel (a None result is returned).</span>
+<span class="sd">    """</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="n">ph</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s2">"PixelHits"</span><span class="p">]</span> <span class="k">if</span> <span class="s2">"PixelHits"</span> <span class="ow">in</span> <span class="n">f</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">cl</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s2">"Clusters"</span><span class="p">]</span> <span class="k">if</span> <span class="s2">"Clusters"</span> <span class="ow">in</span> <span class="n">f</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">ph</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="n">nc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cl</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">cl</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">n</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">nc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"This file has neither pixel hits nor clusters."</span><span class="p">)</span>
+
+    <span class="n">meta_frames</span><span class="p">,</span> <span class="n">exposure</span><span class="p">,</span> <span class="n">wall</span> <span class="o">=</span> <span class="n">metadata_times</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+    <span class="n">etb_n</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s2">"ExposureTimeBoundaries"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+             <span class="k">if</span> <span class="s2">"ExposureTimeBoundaries"</span> <span class="ow">in</span> <span class="n">f</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">n_frames</span> <span class="o">=</span> <span class="n">etb_n</span> <span class="ow">or</span> <span class="n">meta_frames</span> <span class="ow">or</span> <span class="mi">1</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">n_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">SENSOR_SHAPE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">det</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">))</span>
+    <span class="n">hit_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">cl_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">n</span> <span class="o">+</span> <span class="n">nc</span>
+
+    <span class="c1"># ---- pixels: map, sortedness, the k largest ToA gaps ------------------</span>
+    <span class="n">t_first</span> <span class="o">=</span> <span class="n">t_last</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">unsorted</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># (size, row of the hit after it, ToA of that hit) of the widest gaps.</span>
+    <span class="n">gaps</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">prev</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timed</span> <span class="o">=</span> <span class="n">ph</span> <span class="k">if</span> <span class="n">n</span> <span class="k">else</span> <span class="n">cl</span>
+    <span class="n">tfield</span> <span class="o">=</span> <span class="s2">"toa"</span> <span class="k">if</span> <span class="n">n</span> <span class="k">else</span> <span class="s2">"ctoa"</span>
+    <span class="n">tn</span> <span class="o">=</span> <span class="n">n</span> <span class="k">if</span> <span class="n">n</span> <span class="k">else</span> <span class="n">nc</span>
+    <span class="k">if</span> <span class="n">tn</span><span class="p">:</span>
+        <span class="n">t_first</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">timed</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">tfield</span><span class="p">])</span>
+        <span class="n">t_last</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">timed</span><span class="p">[</span><span class="n">tn</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">tfield</span><span class="p">])</span>
+    <span class="n">edges</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">t_first</span><span class="p">,</span> <span class="n">t_last</span><span class="p">,</span> <span class="n">TIME_BINS</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">tn</span> <span class="ow">and</span> <span class="n">t_last</span> <span class="o">&gt;</span> <span class="n">t_first</span>
+             <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">hits_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">TIME_BINS</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span>
+    <span class="n">clusters_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">TIME_BINS</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">binned</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">TIME_BINS</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="n">TIME_BINS</span><span class="p">)</span>
+
+    <span class="c1"># Per-slot maps for the per-frame medians: map pieces cut at wide gaps</span>
+    <span class="c1"># when there are frames, time bins when there is one.</span>
+    <span class="n">slot_cap</span> <span class="o">=</span> <span class="n">MAX_SLOT_CELLS</span> <span class="o">//</span> <span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">pix_slots</span><span class="p">,</span> <span class="n">pix_on</span><span class="p">,</span> <span class="n">med_why</span> <span class="o">=</span> <span class="p">{},</span> <span class="nb">bool</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="s2">""</span>
+    <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">edges</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pix_on</span><span class="p">,</span> <span class="n">med_why</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">"too few hits to follow over time"</span>
+    <span class="n">seg_next</span><span class="p">,</span> <span class="n">cut_rows</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="p">[]</span>
+
+    <span class="n">t_min</span> <span class="o">=</span> <span class="n">t_max</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+        <span class="n">blk</span> <span class="o">=</span> <span class="n">_fields</span><span class="p">(</span><span class="n">ph</span><span class="p">,</span> <span class="p">(</span><span class="s2">"toa"</span><span class="p">,</span> <span class="s2">"x"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">),</span> <span class="n">a</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="n">hit_map</span> <span class="o">=</span> <span class="n">_add_xy</span><span class="p">(</span><span class="n">hit_map</span><span class="p">,</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"x"</span><span class="p">],</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"y"</span><span class="p">],</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"toa"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+        <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">int</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="n">t_min</span> <span class="o">=</span> <span class="n">lo</span> <span class="k">if</span> <span class="n">t_min</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span><span class="n">t_min</span><span class="p">,</span> <span class="n">lo</span><span class="p">)</span>
+        <span class="n">t_max</span> <span class="o">=</span> <span class="n">hi</span> <span class="k">if</span> <span class="n">t_max</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">max</span><span class="p">(</span><span class="n">t_max</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hits_t</span> <span class="o">+=</span> <span class="n">binned</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span> <span class="k">if</span> <span class="n">prev</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">prev</span><span class="p">],</span> <span class="n">t</span><span class="p">]))</span>
+        <span class="n">unsorted</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">((</span><span class="n">d</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">off</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">after</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">off</span><span class="p">:]</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span> <span class="n">off</span>
+        <span class="c1"># k frame gaps plus the runner-up, to check they stand clear.</span>
+        <span class="n">gaps</span> <span class="o">=</span> <span class="n">_top_gaps</span><span class="p">(</span><span class="n">gaps</span><span class="p">,</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">after</span><span class="p">),</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">k</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">pix_on</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">k</span><span class="p">:</span>
+                <span class="n">spacing</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">t_first</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">cut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+                <span class="n">cut</span><span class="p">[</span><span class="n">off</span><span class="p">:]</span> <span class="o">=</span> <span class="n">d</span> <span class="o">&gt;</span> <span class="n">FRAME_CUT_RATIO</span> <span class="o">*</span> <span class="n">spacing</span>
+                <span class="n">slot</span> <span class="o">=</span> <span class="n">seg_next</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">cut</span><span class="p">)</span>
+                <span class="n">cut_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">cut</span><span class="p">))</span>
+                <span class="n">seg_next</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">slot</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">slot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                               <span class="mi">0</span><span class="p">,</span> <span class="n">TIME_BINS</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">_add_slots</span><span class="p">(</span><span class="n">pix_slots</span><span class="p">,</span> <span class="n">slot</span><span class="p">,</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"x"</span><span class="p">],</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"y"</span><span class="p">],</span> <span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pix_slots</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">slot_cap</span><span class="p">:</span>
+                <span class="n">pix_on</span><span class="p">,</span> <span class="n">pix_slots</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="p">{}</span>
+                <span class="n">med_why</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"too many frames to keep a map of each "</span>
+                           <span class="sa">f</span><span class="s2">"(more than </span><span class="si">{</span><span class="n">slot_cap</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">progress</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span> <span class="o">/</span> <span class="n">total</span><span class="p">,</span>
+                                 <span class="sa">f</span><span class="s2">"PixelHits </span><span class="si">{</span><span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">step</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> / </span><span class="si">{</span><span class="n">n</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># ---- frames ------------------------------------------------------------</span>
+    <span class="n">frames_ok</span><span class="p">,</span> <span class="n">frames_why</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">""</span>
+    <span class="n">frame_start</span> <span class="o">=</span> <span class="n">frame_end</span> <span class="o">=</span> <span class="n">frame_hits</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">n</span><span class="p">:</span>
+        <span class="n">t_first</span><span class="p">,</span> <span class="n">t_last</span> <span class="o">=</span> <span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span>
+        <span class="k">if</span> <span class="n">unsorted</span><span class="p">:</span>
+            <span class="n">frames_why</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"ToA is not sorted (</span><span class="si">{</span><span class="n">unsorted</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> steps back)"</span>
+        <span class="k">elif</span> <span class="n">k</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">gaps</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">k</span><span class="p">:</span>
+            <span class="n">wide</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">gaps</span><span class="p">[</span><span class="mi">0</span><span class="p">])[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">runner</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">gaps</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">wide</span><span class="p">[</span><span class="n">k</span><span class="p">]])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">wide</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">k</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">wide</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">top</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">gaps</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">top</span><span class="p">])]</span>          <span class="c1"># in row order</span>
+            <span class="n">gsz</span><span class="p">,</span> <span class="n">gpos</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="n">top</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gaps</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">runner</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">gsz</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">FRAME_SEPARATION</span> <span class="o">*</span> <span class="n">runner</span><span class="p">:</span>
+                <span class="n">frames_why</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"the </span><span class="si">{</span><span class="n">n_frames</span><span class="si">}</span><span class="s2"> frames do not separate: the "</span>
+                              <span class="sa">f</span><span class="s2">"narrowest of the </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> widest ToA gaps is only "</span>
+                              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">gsz</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">runner</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x the next one"</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">frames_ok</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">frame_start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">t_first</span><span class="p">],</span> <span class="n">after</span><span class="p">])</span>
+                <span class="n">frame_end</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">after</span> <span class="o">-</span> <span class="n">gsz</span><span class="p">,</span> <span class="p">[</span><span class="n">t_last</span><span class="p">]])</span>
+                <span class="n">frame_hits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gpos</span><span class="p">,</span> <span class="p">[</span><span class="n">n</span><span class="p">]]))</span>
+        <span class="k">elif</span> <span class="n">k</span><span class="p">:</span>
+            <span class="n">frames_why</span> <span class="o">=</span> <span class="s2">"fewer hits than frames"</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">frames_ok</span> <span class="o">=</span> <span class="kc">True</span>                       <span class="c1"># one frame: its span</span>
+            <span class="n">frame_start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t_first</span><span class="p">])</span>
+            <span class="n">frame_end</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t_last</span><span class="p">])</span>
+            <span class="n">frame_hits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">n</span><span class="p">])</span>
+
+    <span class="c1"># Slots of the rate-vs-time plot: frames when there are several, time</span>
+    <span class="c1"># bins for one. Per-slot medians over the pixels that counted at all.</span>
+    <span class="n">by_frame</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="ow">and</span> <span class="n">frames_ok</span>
+    <span class="n">n_slots</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame_start</span><span class="p">)</span> <span class="k">if</span> <span class="n">by_frame</span> <span class="k">else</span> <span class="n">TIME_BINS</span>
+    <span class="k">if</span> <span class="n">k</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">frames_ok</span><span class="p">:</span>
+        <span class="n">med_why</span> <span class="o">=</span> <span class="n">med_why</span> <span class="ow">or</span> <span class="p">(</span><span class="n">frames_why</span> <span class="ow">or</span> <span class="s2">"no frames"</span><span class="p">)</span>
+    <span class="n">counted</span> <span class="o">=</span> <span class="n">hit_map</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">med_hits</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">pix_on</span> <span class="ow">and</span> <span class="n">n</span> <span class="ow">and</span> <span class="p">(</span><span class="n">by_frame</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">k</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">by_frame</span><span class="p">:</span>
+            <span class="n">cuts</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">cut_rows</span><span class="p">)</span> <span class="k">if</span> <span class="n">cut_rows</span>
+                    <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">gpos</span><span class="p">,</span> <span class="n">cuts</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="c1"># Map piece i starts at row starts[i]; merge pieces by frame.</span>
+                <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cuts</span><span class="p">])</span>
+                <span class="n">frame_of</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">gpos</span><span class="p">,</span> <span class="n">starts</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span>
+                <span class="n">frames</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">mp</span> <span class="ow">in</span> <span class="n">pix_slots</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">fr</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frame_of</span><span class="p">[</span><span class="n">s</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">frames</span><span class="p">:</span>
+                        <span class="n">a_</span><span class="p">,</span> <span class="n">b_</span> <span class="o">=</span> <span class="n">frames</span><span class="p">[</span><span class="n">fr</span><span class="p">],</span> <span class="n">mp</span>
+                        <span class="n">hh</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">a_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">b_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">ww</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">a_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">b_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                        <span class="n">frames</span><span class="p">[</span><span class="n">fr</span><span class="p">]</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">a_</span><span class="p">,</span> <span class="n">hh</span><span class="p">,</span> <span class="n">ww</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span> <span class="o">+</span> <span class="n">_grow</span><span class="p">(</span><span class="n">b_</span><span class="p">,</span> <span class="n">hh</span><span class="p">,</span> <span class="n">ww</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">frames</span><span class="p">[</span><span class="n">fr</span><span class="p">]</span> <span class="o">=</span> <span class="n">mp</span>
+                <span class="n">pix_slots</span> <span class="o">=</span> <span class="n">frames</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pix_slots</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">med_why</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"a frame gap is under </span><span class="si">{</span><span class="n">FRAME_CUT_RATIO</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">x the "</span>
+                           <span class="s2">"mean hit spacing"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pix_slots</span><span class="p">:</span>
+            <span class="n">med_hits</span> <span class="o">=</span> <span class="n">_slot_medians</span><span class="p">(</span><span class="n">pix_slots</span><span class="p">,</span> <span class="n">n_slots</span><span class="p">,</span> <span class="n">counted</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">med_why</span><span class="p">:</span>
+        <span class="n">med_why</span> <span class="o">=</span> <span class="s2">"no per-frame maps"</span>
+    <span class="n">pix_slots</span> <span class="o">=</span> <span class="kc">None</span>                               <span class="c1"># free the maps</span>
+
+    <span class="c1"># ---- clusters ----------------------------------------------------------</span>
+    <span class="n">frame_clusters</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">frame_start</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"int64"</span><span class="p">)</span>
+                      <span class="k">if</span> <span class="n">frames_ok</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">cl_slots</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">cl_on</span> <span class="o">=</span> <span class="p">(</span><span class="n">med_hits</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">n</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">by_frame</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">k</span><span class="p">)</span> \
+        <span class="ow">and</span> <span class="p">(</span><span class="n">by_frame</span> <span class="ow">or</span> <span class="n">edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">size1</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">size_sum</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">nc</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+        <span class="n">blk</span> <span class="o">=</span> <span class="n">_fields</span><span class="p">(</span><span class="n">cl</span><span class="p">,</span> <span class="p">(</span><span class="s2">"ctoa"</span><span class="p">,</span> <span class="s2">"cx"</span><span class="p">,</span> <span class="s2">"cy"</span><span class="p">,</span> <span class="s2">"size"</span><span class="p">),</span> <span class="n">a</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">nc</span><span class="p">))</span>
+        <span class="n">cl_map</span> <span class="o">=</span> <span class="n">_add_xy</span><span class="p">(</span><span class="n">cl_map</span><span class="p">,</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"cx"</span><span class="p">],</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"cy"</span><span class="p">],</span> <span class="n">np</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"size"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+        <span class="n">size1</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">((</span><span class="n">s</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">size_sum</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"ctoa"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int64"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">n</span><span class="p">:</span>
+            <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">int</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+            <span class="n">t_min</span> <span class="o">=</span> <span class="n">lo</span> <span class="k">if</span> <span class="n">t_min</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span><span class="n">t_min</span><span class="p">,</span> <span class="n">lo</span><span class="p">)</span>
+            <span class="n">t_max</span> <span class="o">=</span> <span class="n">hi</span> <span class="k">if</span> <span class="n">t_max</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">max</span><span class="p">(</span><span class="n">t_max</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">clusters_t</span> <span class="o">+=</span> <span class="n">binned</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">frame_clusters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">frame_start</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">frame_clusters</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">fi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame_start</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                                          <span class="n">minlength</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">frame_start</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">cl_on</span><span class="p">:</span>
+            <span class="n">ref</span> <span class="o">=</span> <span class="n">frame_start</span> <span class="k">if</span> <span class="n">by_frame</span> <span class="k">else</span> <span class="n">edges</span>
+            <span class="n">slot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                           <span class="mi">0</span><span class="p">,</span> <span class="n">n_slots</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">_add_slots</span><span class="p">(</span><span class="n">cl_slots</span><span class="p">,</span> <span class="n">slot</span><span class="p">,</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"cx"</span><span class="p">],</span> <span class="n">blk</span><span class="p">[</span><span class="s2">"cy"</span><span class="p">],</span> <span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cl_slots</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">slot_cap</span><span class="p">:</span>
+                <span class="n">cl_on</span><span class="p">,</span> <span class="n">cl_slots</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">progress</span><span class="p">((</span><span class="n">n</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">nc</span><span class="p">))</span> <span class="o">/</span> <span class="n">total</span><span class="p">,</span>
+                                 <span class="sa">f</span><span class="s2">"Clusters </span><span class="si">{</span><span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">step</span><span class="p">,</span><span class="w"> </span><span class="n">nc</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> / </span><span class="si">{</span><span class="n">nc</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">n</span><span class="p">:</span>
+        <span class="n">t_first</span><span class="p">,</span> <span class="n">t_last</span> <span class="o">=</span> <span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span>
+        <span class="n">frames_why</span> <span class="o">=</span> <span class="s2">"no pixel hits to find the frames in"</span>
+
+    <span class="c1"># Both maps on one shape.</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">hit_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cl_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">hit_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cl_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">hit_map</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">hit_map</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">cl_map</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">cl_map</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="c1"># Cluster medians over the same pixels as the hit medians: those that</span>
+    <span class="c1"># counted hits, or -- in a clusters-only file -- clusters.</span>
+    <span class="n">med_clusters</span> <span class="o">=</span> <span class="p">(</span><span class="n">_slot_medians</span><span class="p">(</span><span class="n">cl_slots</span><span class="p">,</span> <span class="n">n_slots</span><span class="p">,</span>
+                                  <span class="n">hit_map</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">n</span> <span class="k">else</span> <span class="n">cl_map</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">cl_slots</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">cl_slots</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">sec</span> <span class="o">=</span> <span class="n">det</span><span class="o">.</span><span class="n">toa_seconds</span>
+    <span class="n">span</span> <span class="o">=</span> <span class="p">(</span><span class="n">t_last</span> <span class="o">-</span> <span class="n">t_first</span><span class="p">)</span> <span class="o">*</span> <span class="n">sec</span> <span class="k">if</span> <span class="n">t_first</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">times</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"frames_toa"</span><span class="p">:</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">frame_end</span> <span class="o">-</span> <span class="n">frame_start</span><span class="p">))</span> <span class="o">*</span> <span class="n">sec</span>
+                       <span class="k">if</span> <span class="n">frames_ok</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="s2">"frames_meta"</span><span class="p">:</span> <span class="p">(</span><span class="n">n_frames</span> <span class="o">*</span> <span class="n">exposure</span> <span class="k">if</span> <span class="n">exposure</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="s2">"toa_span"</span><span class="p">:</span> <span class="n">span</span><span class="p">,</span>
+        <span class="s2">"wall_clock"</span><span class="p">:</span> <span class="n">wall</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">why</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"frames_toa"</span><span class="p">:</span> <span class="n">frames_why</span><span class="p">,</span>
+        <span class="s2">"frames_meta"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"no measurement_metadata.json found"</span> <span class="k">if</span> <span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span>
+                        <span class="k">else</span> <span class="s2">"no ExposureTime in the metadata"</span><span class="p">),</span>
+        <span class="s2">"toa_span"</span><span class="p">:</span> <span class="s2">"no hits"</span><span class="p">,</span>
+        <span class="s2">"wall_clock"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"no measurement_metadata.json found"</span> <span class="k">if</span> <span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span>
+                       <span class="k">else</span> <span class="s2">"no Start/StopDateTime in the metadata"</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"detector"</span><span class="p">:</span> <span class="n">det</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+        <span class="s2">"n_hits"</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s2">"n_clusters"</span><span class="p">:</span> <span class="n">nc</span><span class="p">,</span>
+        <span class="s2">"hit_map"</span><span class="p">:</span> <span class="n">hit_map</span><span class="p">,</span> <span class="s2">"cluster_map"</span><span class="p">:</span> <span class="n">cl_map</span><span class="p">,</span>
+        <span class="s2">"size1"</span><span class="p">:</span> <span class="n">size1</span><span class="p">,</span> <span class="s2">"size_sum"</span><span class="p">:</span> <span class="n">size_sum</span><span class="p">,</span>
+        <span class="s2">"n_frames"</span><span class="p">:</span> <span class="n">n_frames</span><span class="p">,</span> <span class="s2">"etb_frames"</span><span class="p">:</span> <span class="n">etb_n</span><span class="p">,</span> <span class="s2">"meta_frames"</span><span class="p">:</span> <span class="n">meta_frames</span><span class="p">,</span>
+        <span class="s2">"exposure_s"</span><span class="p">:</span> <span class="n">exposure</span><span class="p">,</span>
+        <span class="s2">"times"</span><span class="p">:</span> <span class="n">times</span><span class="p">,</span> <span class="s2">"why"</span><span class="p">:</span> <span class="n">why</span><span class="p">,</span>
+        <span class="s2">"frame_start_s"</span><span class="p">:</span> <span class="p">(</span><span class="n">frame_start</span> <span class="o">-</span> <span class="n">t_first</span><span class="p">)</span> <span class="o">*</span> <span class="n">sec</span> <span class="k">if</span> <span class="n">frames_ok</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"frame_live_s"</span><span class="p">:</span> <span class="p">(</span><span class="n">frame_end</span> <span class="o">-</span> <span class="n">frame_start</span><span class="p">)</span> <span class="o">*</span> <span class="n">sec</span> <span class="k">if</span> <span class="n">frames_ok</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"frame_hits"</span><span class="p">:</span> <span class="n">frame_hits</span><span class="p">,</span> <span class="s2">"frame_clusters"</span><span class="p">:</span> <span class="n">frame_clusters</span><span class="p">,</span>
+        <span class="s2">"bin_edges_s"</span><span class="p">:</span> <span class="p">((</span><span class="n">edges</span> <span class="o">-</span> <span class="n">t_first</span><span class="p">)</span> <span class="o">*</span> <span class="n">sec</span> <span class="k">if</span> <span class="n">edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="s2">"bin_hits"</span><span class="p">:</span> <span class="n">hits_t</span> <span class="k">if</span> <span class="n">edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"bin_clusters"</span><span class="p">:</span> <span class="n">clusters_t</span> <span class="k">if</span> <span class="n">edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="c1"># Median counts per pixel in each slot -- frames when by_frame, else</span>
+        <span class="c1"># the time bins; None (with med_why) when not available.</span>
+        <span class="s2">"med_by_frame"</span><span class="p">:</span> <span class="n">by_frame</span><span class="p">,</span>
+        <span class="s2">"med_hits"</span><span class="p">:</span> <span class="n">med_hits</span><span class="p">,</span> <span class="s2">"med_clusters"</span><span class="p">:</span> <span class="n">med_clusters</span><span class="p">,</span>
+        <span class="s2">"med_why"</span><span class="p">:</span> <span class="n">med_why</span><span class="p">,</span>
+        <span class="s2">"meta_path"</span><span class="p">:</span> <span class="p">(</span><span class="n">meta</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"_path"</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+
+
+<span class="c1"># -- rates ----------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="pick_time">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.pick_time">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">pick_time</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">source</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""(seconds, source used, note). Falls back through the list in order</span>
+<span class="sd">    when the chosen time is unavailable, and says so."""</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"times"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">t</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="s2">""</span>
+    <span class="k">for</span> <span class="n">alt</span> <span class="ow">in</span> <span class="n">TIME_SOURCES</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"times"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">alt</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">counts</span><span class="p">[</span><span class="s2">"times"</span><span class="p">][</span><span class="n">alt</span><span class="p">],</span> <span class="n">alt</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">TIME_SOURCES</span><span class="p">[</span><span class="n">source</span><span class="p">]</span><span class="si">}</span><span class="s2"> unavailable (</span><span class="si">{</span><span class="n">counts</span><span class="p">[</span><span class="s1">'why'</span><span class="p">][</span><span class="n">source</span><span class="p">]</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="s2">"no measurement time available"</span></div>
+
+
+
+<div class="viewcode-block" id="dcr_maps">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.dcr_maps">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dcr_maps</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">seconds</span><span class="p">,</span> <span class="n">noisy_k</span><span class="p">,</span> <span class="n">np</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Per-pixel rates and the masks they imply."""</span>
+    <span class="k">if</span> <span class="n">np</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+    <span class="n">hits</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"hit_map"</span><span class="p">]</span>
+    <span class="n">active</span> <span class="o">=</span> <span class="n">hits</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">median</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">hits</span><span class="p">[</span><span class="n">active</span><span class="p">]))</span> <span class="k">if</span> <span class="n">active</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="n">cut</span> <span class="o">=</span> <span class="n">noisy_k</span> <span class="o">*</span> <span class="n">median</span>
+    <span class="n">noisy</span> <span class="o">=</span> <span class="n">hits</span> <span class="o">&gt;</span> <span class="n">cut</span> <span class="k">if</span> <span class="n">median</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">active</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"hit_rate"</span><span class="p">:</span> <span class="n">hits</span> <span class="o">/</span> <span class="n">seconds</span><span class="p">,</span>
+        <span class="s2">"cluster_rate"</span><span class="p">:</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"cluster_map"</span><span class="p">]</span> <span class="o">/</span> <span class="n">seconds</span><span class="p">,</span>
+        <span class="s2">"silent"</span><span class="p">:</span> <span class="o">~</span><span class="n">active</span><span class="p">,</span> <span class="s2">"noisy"</span><span class="p">:</span> <span class="n">noisy</span><span class="p">,</span>
+        <span class="s2">"median_hits"</span><span class="p">:</span> <span class="n">median</span><span class="p">,</span> <span class="s2">"noisy_cut_hits"</span><span class="p">:</span> <span class="n">cut</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="fmt_rate">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.fmt_rate">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fmt_rate</span><span class="p">(</span><span class="n">hz</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""3.716 MHz, 457.6 kHz, 56.7 Hz, 0.0123 Hz."""</span>
+    <span class="k">for</span> <span class="n">scale</span><span class="p">,</span> <span class="n">unit</span> <span class="ow">in</span> <span class="p">((</span><span class="mf">1e9</span><span class="p">,</span> <span class="s2">"GHz"</span><span class="p">),</span> <span class="p">(</span><span class="mf">1e6</span><span class="p">,</span> <span class="s2">"MHz"</span><span class="p">),</span> <span class="p">(</span><span class="mf">1e3</span><span class="p">,</span> <span class="s2">"kHz"</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">hz</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">scale</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">hz</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">scale</span><span class="si">:</span><span class="s2">.4g</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">hz</span><span class="si">:</span><span class="s2">.4g</span><span class="si">}</span><span class="s2"> Hz"</span></div>
+
+
+
+<div class="viewcode-block" id="dcr_report">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.dcr_report">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dcr_report</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">DCR_DEFAULT_TIME_SOURCE</span><span class="p">,</span>
+               <span class="n">noisy_k</span><span class="o">=</span><span class="n">DCR_DEFAULT_NOISY_K</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""(lines, maps): the text for the DCR page, and dcr_maps() for plots."""</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="n">T</span><span class="p">,</span> <span class="n">used</span><span class="p">,</span> <span class="n">note</span> <span class="o">=</span> <span class="n">pick_time</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">T</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s2">"DCR            no measurement time available -- "</span>
+                <span class="o">+</span> <span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">TIME_SOURCES</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">counts</span><span class="p">[</span><span class="s1">'why'</span><span class="p">][</span><span class="n">s</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span>
+                            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">TIME_SOURCES</span><span class="p">)],</span> <span class="kc">None</span>
+
+    <span class="n">nf</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"n_frames"</span><span class="p">]</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"time base      </span><span class="si">{</span><span class="n">TIME_SOURCES</span><span class="p">[</span><span class="n">used</span><span class="p">]</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">T</span><span class="si">:</span><span class="s2">.6g</span><span class="si">}</span><span class="s2"> s"</span>
+               <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"   (</span><span class="si">{</span><span class="n">nf</span><span class="si">}</span><span class="s2"> frames)"</span> <span class="k">if</span> <span class="n">nf</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">""</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">note</span><span class="p">:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"   !! "</span> <span class="o">+</span> <span class="n">note</span><span class="p">)</span>
+    <span class="n">others</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">TIME_SOURCES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="n">used</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"times"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">others</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">: "</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">t</span><span class="si">:</span><span class="s2">.6g</span><span class="si">}</span><span class="s2"> s"</span> <span class="k">if</span> <span class="n">t</span> <span class="k">else</span> <span class="s2">"n/a"</span><span class="p">))</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"   other bases: "</span> <span class="o">+</span> <span class="s2">" | "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">others</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"meta_path"</span><span class="p">]:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"   metadata: "</span> <span class="o">+</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"meta_path"</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"etb_frames"</span><span class="p">]</span> <span class="ow">and</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"meta_frames"</span><span class="p">]</span> \
+            <span class="ow">and</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"etb_frames"</span><span class="p">]</span> <span class="o">!=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"meta_frames"</span><span class="p">]:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   !! </span><span class="si">{</span><span class="n">counts</span><span class="p">[</span><span class="s1">'etb_frames'</span><span class="p">]</span><span class="si">}</span><span class="s2"> frame boundaries in the file "</span>
+                   <span class="sa">f</span><span class="s2">"but NumberOfFrames = </span><span class="si">{</span><span class="n">counts</span><span class="p">[</span><span class="s1">'meta_frames'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="n">m</span> <span class="o">=</span> <span class="n">dcr_maps</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">noisy_k</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">hits</span><span class="p">,</span> <span class="n">clm</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"hit_map"</span><span class="p">],</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"cluster_map"</span><span class="p">]</span>
+    <span class="n">n_px</span> <span class="o">=</span> <span class="n">hits</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">silent</span><span class="p">,</span> <span class="n">noisy</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="s2">"silent"</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s2">"noisy"</span><span class="p">]</span>
+    <span class="n">clean</span> <span class="o">=</span> <span class="o">~</span><span class="p">(</span><span class="n">silent</span> <span class="o">|</span> <span class="n">noisy</span><span class="p">)</span>
+    <span class="n">n_clean</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">clean</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">area</span> <span class="o">=</span> <span class="n">n_px</span> <span class="o">*</span> <span class="n">PIXEL_AREA_MM2</span>
+    <span class="n">clean_area</span> <span class="o">=</span> <span class="n">n_clean</span> <span class="o">*</span> <span class="n">PIXEL_AREA_MM2</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">per_area</span><span class="p">(</span><span class="n">rate</span><span class="p">,</span> <span class="n">a</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">rate</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">a</span><span class="p">)</span><span class="si">}</span><span class="s2">/mm2  (</span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">rate</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="si">}</span><span class="s2">/cm2)"</span>
+                <span class="k">if</span> <span class="n">a</span> <span class="k">else</span> <span class="s2">"n/a"</span><span class="p">)</span>
+
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"n_hits"</span><span class="p">]:</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"n_hits"</span><span class="p">]</span>
+        <span class="n">rate</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="n">T</span>
+        <span class="n">px_rates</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="s2">"hit_rate"</span><span class="p">]</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"pixels         </span><span class="si">{</span><span class="n">n</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> hits -&gt; </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">rate</span><span class="p">)</span><span class="si">}</span><span class="s2"> over "</span>
+                   <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">n_px</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> pixels (</span><span class="si">{</span><span class="n">hits</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> x </span><span class="si">{</span><span class="n">hits</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, "</span>
+                   <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">area</span><span class="si">:</span><span class="s2">.4g</span><span class="si">}</span><span class="s2"> mm2)"</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   per pixel    mean </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">rate</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n_px</span><span class="p">)</span><span class="si">}</span><span class="s2">, median "</span>
+                   <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">'median_hits'</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">T</span><span class="p">)</span><span class="si">}</span><span class="s2"> (of pixels that counted)"</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   per area     </span><span class="si">{</span><span class="n">per_area</span><span class="p">(</span><span class="n">rate</span><span class="p">,</span><span class="w"> </span><span class="n">area</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   silent       </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">silent</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> pixel(s) with no hit"</span>
+                   <span class="o">+</span> <span class="p">(</span><span class="s2">"   (median is only "</span>
+                      <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">'median_hits'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> hits: these may be Poisson zeros)"</span>
+                      <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">[</span><span class="s2">"median_hits"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="s2">""</span><span class="p">))</span>
+        <span class="n">n_noisy</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">noisy</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">noisy_hits</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">hits</span><span class="p">[</span><span class="n">noisy</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"   noisy        </span><span class="si">{</span><span class="n">n_noisy</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> pixel(s) above </span><span class="si">{</span><span class="n">noisy_k</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2"> x "</span>
+                <span class="sa">f</span><span class="s2">"median = </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">'noisy_cut_hits'</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">T</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_noisy</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">", </span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">noisy_hits</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> % of all hits"</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hits</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">y0</span><span class="p">,</span> <span class="n">x0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">hits</span><span class="o">.</span><span class="n">argmax</span><span class="p">()),</span> <span class="n">hits</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   hottest      (</span><span class="si">{</span><span class="n">x0</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">y0</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">hits</span><span class="o">.</span><span class="n">max</span><span class="p">())</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> hits"</span>
+                       <span class="sa">f</span><span class="s2">" = </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">px_rates</span><span class="p">[</span><span class="n">y0</span><span class="p">,</span><span class="w"> </span><span class="n">x0</span><span class="p">]))</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">clean_rate</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">noisy_hits</span><span class="p">)</span> <span class="o">/</span> <span class="n">T</span>
+        <span class="k">if</span> <span class="n">n_clean</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   clean        </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">clean_rate</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n_clean</span><span class="p">)</span><span class="si">}</span><span class="s2">/pixel, "</span>
+                       <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">per_area</span><span class="p">(</span><span class="n">clean_rate</span><span class="p">,</span><span class="w"> </span><span class="n">clean_area</span><span class="p">)</span><span class="si">}</span><span class="s2">   "</span>
+                       <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">n_clean</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> pixels: no noisy, no silent)"</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"pixels         none in this file "</span>
+                   <span class="s2">"(processed with --discard-pixel-data?)"</span><span class="p">)</span>
+
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"n_clusters"</span><span class="p">]:</span>
+        <span class="n">nc</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"n_clusters"</span><span class="p">]</span>
+        <span class="n">crate</span> <span class="o">=</span> <span class="n">nc</span> <span class="o">/</span> <span class="n">T</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"clusters       </span><span class="si">{</span><span class="n">nc</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">crate</span><span class="p">)</span><span class="si">}</span><span class="s2">, "</span>
+                   <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">per_area</span><span class="p">(</span><span class="n">crate</span><span class="p">,</span><span class="w"> </span><span class="n">area</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"n_hits"</span><span class="p">]:</span>
+            <span class="n">on_noisy</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">clm</span><span class="p">[</span><span class="n">noisy</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">n_clean</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   clean        </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">((</span><span class="n">nc</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">on_noisy</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">T</span><span class="p">)</span><span class="si">}</span><span class="s2">, "</span>
+                           <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">per_area</span><span class="p">((</span><span class="n">nc</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">on_noisy</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">clean_area</span><span class="p">)</span><span class="si">}</span><span class="s2">   "</span>
+                           <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">on_noisy</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> centred on a noisy pixel left out)"</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"   hits/cluster </span><span class="si">{</span><span class="n">counts</span><span class="p">[</span><span class="s1">'size_sum'</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">nc</span><span class="si">:</span><span class="s2">.3g</span><span class="si">}</span><span class="s2">; "</span>
+                   <span class="sa">f</span><span class="s2">"size 1: </span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">counts</span><span class="p">[</span><span class="s1">'size1'</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">nc</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> %"</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"clusters       none in this file "</span>
+                   <span class="s2">"(processed with --disable-clustering?)"</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"frame_live_s"</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">[</span><span class="s2">"frame_live_s"</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">live</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"frame_live_s"</span><span class="p">]</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"frame_hits"</span><span class="p">,</span> <span class="s2">"pixel"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"frame_clusters"</span><span class="p">,</span> <span class="s2">"cluster"</span><span class="p">)):</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">sum</span><span class="p">():</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">c</span> <span class="o">/</span> <span class="n">live</span>
+                <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> rate </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">min</span><span class="p">())</span><span class="si">}</span><span class="s2"> .. "</span>
+                             <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">max</span><span class="p">())</span><span class="si">}</span><span class="s2"> (spread "</span>
+                             <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">r</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">r</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> %)"</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"per frame      </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">live</span><span class="p">)</span><span class="si">}</span><span class="s2"> frames of </span><span class="si">{</span><span class="n">live</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.4g</span><span class="si">}</span><span class="s2"> s"</span>
+                   <span class="o">+</span> <span class="p">(</span><span class="s2">"; "</span> <span class="o">+</span> <span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="k">if</span> <span class="n">parts</span> <span class="k">else</span> <span class="s2">""</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"med_by_frame"</span><span class="p">]:</span>
+            <span class="n">meds</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"med_hits"</span><span class="p">,</span> <span class="s2">"hits"</span><span class="p">),</span>
+                               <span class="p">(</span><span class="s2">"med_clusters"</span><span class="p">,</span> <span class="s2">"clusters"</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">/</span> <span class="n">live</span>
+                    <span class="n">meds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">min</span><span class="p">())</span><span class="si">}</span><span class="s2"> .. "</span>
+                                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">fmt_rate</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">max</span><span class="p">())</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meds</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"   median pixel "</span> <span class="o">+</span> <span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">meds</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"med_why"</span><span class="p">):</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"   median pixel per frame unavailable: "</span>
+                       <span class="o">+</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"med_why"</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="n">m</span></div>
+
+
+
+<span class="c1"># -- export ---------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="write_dcr_csv">
+<a class="viewcode-back" href="../../../luna_gui_wrapper.functions.dcr.html#luna_gui_wrapper.functions.dcr.write_dcr_csv">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_dcr_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">DCR_DEFAULT_TIME_SOURCE</span><span class="p">,</span>
+                  <span class="n">noisy_k</span><span class="o">=</span><span class="n">DCR_DEFAULT_NOISY_K</span><span class="p">,</span> <span class="n">h5_path</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One row per pixel: x, y, hits, rate, clusters, rate, flags."""</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="n">T</span><span class="p">,</span> <span class="n">used</span><span class="p">,</span> <span class="n">_note</span> <span class="o">=</span> <span class="n">pick_time</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">T</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"No measurement time available."</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">dcr_maps</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">noisy_k</span><span class="p">,</span> <span class="n">np</span><span class="p">)</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="s2">"hit_map"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">yy</span><span class="p">,</span> <span class="n">xx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">h</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">w</span><span class="p">]</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span>
+        <span class="n">xx</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">yy</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+        <span class="n">counts</span><span class="p">[</span><span class="s2">"hit_map"</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">m</span><span class="p">[</span><span class="s2">"hit_rate"</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+        <span class="n">counts</span><span class="p">[</span><span class="s2">"cluster_map"</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">m</span><span class="p">[</span><span class="s2">"cluster_rate"</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+        <span class="n">m</span><span class="p">[</span><span class="s2">"noisy"</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">m</span><span class="p">[</span><span class="s2">"silent"</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)])</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+        <span class="sa">f</span><span class="s2">"DCR per pixel of </span><span class="si">{</span><span class="n">h5_path</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"time base: </span><span class="si">{</span><span class="n">TIME_SOURCES</span><span class="p">[</span><span class="n">used</span><span class="p">]</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">T</span><span class="si">:</span><span class="s2">.9g</span><span class="si">}</span><span class="s2"> s"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"noisy: hits &gt; </span><span class="si">{</span><span class="n">noisy_k</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2"> x median (</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">'median_hits'</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">) hits"</span><span class="p">,</span>
+        <span class="s2">"x,y,hits,hit_rate_hz,clusters,cluster_rate_hz,noisy,silent"</span><span class="p">])</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">rows</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">","</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">,</span>
+               <span class="n">fmt</span><span class="o">=</span><span class="p">[</span><span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%.6g</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%.6g</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">])</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Sergei Kulkov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

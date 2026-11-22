@@ -1,0 +1,7 @@
+luna\_gui\_wrapper.functions.flags module
+=========================================
+
+.. automodule:: luna_gui_wrapper.functions.flags
+   :members:
+   :show-inheritance:
+   :undoc-members:
