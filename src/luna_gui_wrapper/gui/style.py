@@ -1,11 +1,27 @@
-"""Appearance: the light and dark palettes and the stylesheet built from them."""
+"""The app's stylesheet, built from a palette.
+
+The colours come from the current theme (theme.py): the two Luna themes hand
+in PALETTES below exactly as they are, every other theme a palette worked out
+from its colours (theme.derive_palette).
+
+custom_qss() is the part of the sheet that gives Luna's own widgets their
+meaning -- the yellow advanced-flags button, the green wrapper button, the
+accent and toggle buttons, the code line, the status colours.
+
+One font size for the whole window: every tab, every field and every text box
+is drawn at the interface size; only the notes under the controls are a point
+smaller and the headings a point larger.
+"""
 
 from __future__ import annotations
+
+import tempfile
+from pathlib import Path
 
 from PySide6.QtGui import QColor, QFontDatabase, QPalette
 
 # ---------------------------------------------------------------------------
-# appearance: two palettes, light and dark
+# the Luna themes' palettes, light and dark
 # ---------------------------------------------------------------------------
 
 PALETTES = {
@@ -26,6 +42,8 @@ PALETTES = {
         flag_bg="#fde047", flag_border="#eab308", flag_fg="#422006",
         wrap_bg="#bbf7d0", wrap_border="#4ade80", wrap_fg="#14532d",
         heading="#0b5cad",
+        # The menu bar, and the views: the log, tables, lists, help pages.
+        panel="#ffffff", view="#f9fafb",
     ),
     "dark": dict(
         surface="#131315",
@@ -44,8 +62,12 @@ PALETTES = {
         flag_bg="#ffd60a", flag_border="#e6c000", flag_fg="#1c1c1e",
         wrap_bg="#86efac", wrap_border="#4ade80", wrap_fg="#052e16",
         heading="#5ac8fa",
+        panel="#131315", view="#1b1b1d",
     ),
 }
+
+# The interface font size the sheets were drawn at; the others are steps off it.
+BASE_FONT_SIZE = 10
 
 _FONT_SANS_CANDIDATES = ("Inter", "Segoe UI", "SF Pro Text", "Helvetica Neue",
                          "Noto Sans", "Helvetica", "Arial")
@@ -62,6 +84,36 @@ def pick_font(candidates, fallback=""):
         if name in available:
             return name
     return fallback
+
+
+_ARROW_DIR = Path(tempfile.gettempdir()) / "luna_gui_wrapper_arrows"
+_ARROW_SVG = {
+    "up": '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" '
+          'viewBox="0 0 8 5"><path d="M0 5 L4 0 L8 5 Z" fill="{c}"/></svg>',
+    "down": '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" '
+            'viewBox="0 0 8 5"><path d="M0 0 L4 5 L8 0 Z" fill="{c}"/></svg>',
+}
+
+
+def arrow_icon(direction: str, colour: str) -> str:
+    """Path of a small spin-box arrow in `colour`, written on first use.
+
+    A stylesheet that gives the spin-box buttons any look of their own makes
+    Qt drop the style's arrows, and it can only put an image in their place
+    -- so the arrow is an image, one per colour, kept in the temp folder.
+    Returned with forward slashes, as a stylesheet url() wants it. If the
+    file cannot be written the path is still returned; the arrow is then
+    simply missing, which is no reason to stop the window drawing.
+    """
+    path = _ARROW_DIR / f"{direction}_{colour.lstrip('#').lower()}.svg"
+    if not path.is_file():
+        try:
+            _ARROW_DIR.mkdir(parents=True, exist_ok=True)
+            path.write_text(_ARROW_SVG[direction].replace("{c}", colour),
+                            encoding="utf-8")
+        except OSError:
+            pass
+    return path.as_posix()
 
 
 def build_palette(pal: dict) -> QPalette:
@@ -93,12 +145,16 @@ def build_palette(pal: dict) -> QPalette:
     return p
 
 
-def build_qss(pal: dict, sans: str, mono: str) -> str:
-    """One stylesheet for the whole app, generated from a palette."""
+def build_qss(pal: dict, sans: str, mono: str, size: int = BASE_FONT_SIZE) -> str:
+    """One stylesheet for the whole app, from a palette.
+
+    `size` is the interface font size in points; the small text is a point
+    below it and the headings a point above, as they were at 10 pt.
+    """
     return f"""
     * {{
         font-family: "{sans}";
-        font-size: 10pt;
+        font-size: {size}pt;
     }}
     /* Only real containers paint a background. A blanket QWidget rule would
        make every QLabel and QCheckBox paint the window colour on top of the
@@ -107,23 +163,6 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
     QLabel, QCheckBox, QRadioButton, QFrame {{
         background: transparent;
         color: {pal['text']};
-    }}
-    QLabel[muted="true"]  {{ color: {pal['text_muted']}; }}
-    QLabel[faint="true"]  {{ color: {pal['text_faint']}; font-size: 9pt; }}
-    QLabel[role="ok"]     {{ color: {pal['success']}; }}
-    QLabel[role="warn"]   {{ color: {pal['warning']}; }}
-    QLabel[role="error"]  {{ color: {pal['error']}; }}
-    QLabel[heading="true"] {{ font-size: 11pt; font-weight: 600; }}
-    QLabel[intro="true"]  {{ font-size: 11pt; color: {pal['text']}; }}
-    QLabel[code="true"] {{
-        font-family: "{mono}";
-        font-size: 11pt;
-        color: {pal['text']};
-        background: {pal['surface_container_high']};
-        border: 1px solid {pal['outline_variant']};
-        border-left: 3px solid {pal['primary']};
-        border-radius: 6px;
-        padding: 6px 14px;
     }}
 
     /* ---- tabs ---------------------------------------------------------- */
@@ -166,31 +205,11 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
         border-color: {pal['outline_variant']};
         background: {pal['surface_container_low']};
     }}
-    QPushButton[accent="true"] {{
-        background: {pal['primary']};
-        border-color: {pal['primary_border']};
-        color: {pal['on_primary']};
-        font-weight: 600;
-    }}
-    QPushButton[accent="true"]:hover   {{ background: {pal['primary_hover']}; }}
-    QPushButton[accent="true"]:disabled {{
-        background: {pal['surface_container']};
-        border-color: {pal['outline_variant']};
-        color: {pal['text_faint']};
-    }}
-    QPushButton[toggle="true"] {{
-        border-radius: 6px;
-        padding: 4px 14px;
-    }}
-    QPushButton[toggle="true"]:checked {{
-        background: {pal['primary']};
-        border-color: {pal['primary_border']};
-        color: {pal['on_primary']};
-        font-weight: 600;
-    }}
 
     /* ---- inputs -------------------------------------------------------- */
-    QLineEdit, QComboBox {{
+    /* Spin boxes too: left to Fusion they were the one kind of field drawn
+       flat and square, in a different shade from the fields beside them. */
+    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
         background: {pal['surface_container_low']};
         border: 1px solid {pal['outline_variant']};
         border-radius: 7px;
@@ -198,10 +217,47 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
         selection-background-color: {pal['primary']};
         selection-color: {pal['on_primary']};
     }}
-    QLineEdit:focus, QComboBox:focus {{ border-color: {pal['primary']}; }}
-    QLineEdit:disabled {{
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
+        border-color: {pal['primary']};
+    }}
+    QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {{
         background: {pal['surface_container']};
         color: {pal['text_faint']};
+    }}
+    QSpinBox, QDoubleSpinBox {{ padding-right: 24px; }}
+    QSpinBox::up-button, QDoubleSpinBox::up-button,
+    QSpinBox::down-button, QDoubleSpinBox::down-button {{
+        subcontrol-origin: border;
+        width: 20px;
+        border: none;
+        border-left: 1px solid {pal['outline_variant']};
+        background: transparent;
+    }}
+    QSpinBox::up-button, QDoubleSpinBox::up-button {{
+        subcontrol-position: top right;
+        border-top-right-radius: 7px;
+    }}
+    QSpinBox::down-button, QDoubleSpinBox::down-button {{
+        subcontrol-position: bottom right;
+        border-bottom-right-radius: 7px;
+    }}
+    QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+    QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+        background: {pal['surface_container_high']};
+    }}
+    QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
+        image: url("{arrow_icon('up', pal['text_muted'])}");
+        width: 8px; height: 5px;
+    }}
+    QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+        image: url("{arrow_icon('down', pal['text_muted'])}");
+        width: 8px; height: 5px;
+    }}
+    QSpinBox::up-arrow:disabled, QDoubleSpinBox::up-arrow:disabled {{
+        image: url("{arrow_icon('up', pal['text_faint'])}");
+    }}
+    QSpinBox::down-arrow:disabled, QDoubleSpinBox::down-arrow:disabled {{
+        image: url("{arrow_icon('down', pal['text_faint'])}");
     }}
     QComboBox QAbstractItemView {{
         background: {pal['surface_container_low']};
@@ -246,7 +302,7 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
 
     /* ---- tables -------------------------------------------------------- */
     QTableView {{
-        background: {pal['surface_container_low']};
+        background: {pal['view']};
         alternate-background-color: {pal['surface_container']};
         border: 1px solid {pal['outline_variant']};
         border-radius: 8px;
@@ -272,11 +328,9 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
 
     /* ---- log ----------------------------------------------------------- */
     QPlainTextEdit {{
-        background: {pal['surface_container_low']};
+        background: {pal['view']};
         border: 1px solid {pal['outline_variant']};
         border-radius: 8px;
-        font-family: "{mono}";
-        font-size: 9pt;
         selection-background-color: {pal['primary']};
         selection-color: {pal['on_primary']};
     }}
@@ -309,6 +363,115 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
     QScrollBar::handle:horizontal:hover {{ background: {pal['outline']}; }}
     QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; width: 0; }}
     QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
+    QListWidget {{
+        background: {pal['view']};
+        border: 1px solid {pal['outline_variant']};
+        border-radius: 8px;
+        outline: none;
+    }}
+    QListWidget::item:selected {{
+        background: {pal['selection']};
+        color: {pal['text']};
+    }}
+
+    /* ---- menu bar ------------------------------------------------------ */
+    QMenuBar {{
+        background: {pal['panel']};
+        color: {pal['text']};
+        padding: 2px 6px;
+    }}
+    QMenuBar::item {{
+        background: transparent;
+        padding: 4px 10px;
+        border-radius: 6px;
+    }}
+    QMenuBar::item:selected, QMenuBar::item:pressed {{
+        background: {pal['surface_container_high']};
+    }}
+    QMenu {{
+        background: {pal['surface_container_low']};
+        color: {pal['text']};
+        border: 1px solid {pal['outline_variant']};
+        padding: 4px;
+    }}
+    QMenu::item {{ padding: 5px 28px 5px 12px; border-radius: 5px; }}
+    QMenu::item:selected {{ background: {pal['selection']}; color: {pal['text']}; }}
+    QMenu::item:disabled {{ color: {pal['text_faint']}; }}
+    QMenu::separator {{
+        height: 1px;
+        background: {pal['outline_variant']};
+        margin: 4px 8px;
+    }}
+
+    /* ---- help ---------------------------------------------------------- */
+    QListWidget[nav="true"]::item:hover {{
+        background: {pal['surface_container_high']};
+    }}
+    QTextBrowser {{
+        padding: 6px 10px;
+        background: {pal['view']};
+        border: 1px solid {pal['outline_variant']};
+        border-radius: 8px;
+        selection-background-color: {pal['primary']};
+        selection-color: {pal['on_primary']};
+    }}
+    QToolTip {{
+        background: {pal['surface_container_highest']};
+        color: {pal['text']};
+        border: 1px solid {pal['outline_variant']};
+        padding: 4px 7px;
+    }}
+    """ + custom_qss(pal, sans, mono, size)
+
+
+def custom_qss(pal: dict, sans: str, mono: str, size: int = BASE_FONT_SIZE) -> str:
+    """The rules that give Luna's own widgets their meaning.
+
+    Selected by property or by widget class, never by look: the yellow
+    advanced-flags button, the green wrapper button, the accent and toggle
+    buttons, the code line, the status colours, the monospaced text boxes.
+    """
+    small, large = max(1, size - 1), size + 1
+    return f"""
+    QLabel[muted="true"]  {{ color: {pal['text_muted']}; }}
+    QLabel[faint="true"]  {{ color: {pal['text_faint']}; font-size: {small}pt; }}
+    QLabel[role="ok"]     {{ color: {pal['success']}; }}
+    QLabel[role="warn"]   {{ color: {pal['warning']}; }}
+    QLabel[role="error"]  {{ color: {pal['error']}; }}
+    QLabel[heading="true"] {{ font-size: {large}pt; font-weight: 600; }}
+    QLabel[intro="true"]  {{ font-size: {large}pt; color: {pal['text']}; }}
+    QLabel[code="true"] {{
+        font-family: "{mono}";
+        font-size: {large}pt;
+        color: {pal['text']};
+        background: {pal['surface_container_high']};
+        border: 1px solid {pal['outline_variant']};
+        border-left: 3px solid {pal['primary']};
+        border-radius: 6px;
+        padding: 6px 14px;
+    }}
+    QPushButton[accent="true"] {{
+        background: {pal['primary']};
+        border-color: {pal['primary_border']};
+        color: {pal['on_primary']};
+        font-weight: 600;
+    }}
+    QPushButton[accent="true"]:hover   {{ background: {pal['primary_hover']}; }}
+    QPushButton[accent="true"]:disabled {{
+        background: {pal['surface_container']};
+        border-color: {pal['outline_variant']};
+        color: {pal['text_faint']};
+    }}
+    QPushButton[toggle="true"] {{
+        border-radius: 6px;
+        padding: 4px 14px;
+    }}
+    QPushButton[toggle="true"]:checked {{
+        background: {pal['primary']};
+        border-color: {pal['primary_border']};
+        color: {pal['on_primary']};
+        font-weight: 600;
+    }}
     /* A 1px-wide frame has no room to paint a border, so fill it instead. */
     QFrame[vline="true"] {{
         border: none;
@@ -339,60 +502,26 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
         border-color: {pal['error']};
         color: {pal['error']};
     }}
-    QListWidget {{
-        background: {pal['surface_container_low']};
-        border: 1px solid {pal['outline_variant']};
-        border-radius: 8px;
+    /* The log, the file summary and the DCR report: monospaced, since their
+       columns are lined up with spaces, but at the size of everything else
+       rather than a point below it. */
+    QPlainTextEdit {{
         font-family: "{mono}";
-        font-size: 9pt;
-        outline: none;
+        font-size: {size}pt;
     }}
-    QListWidget::item:selected {{
-        background: {pal['selection']};
-        color: {pal['text']};
+    QListWidget {{
+        font-family: "{mono}";
+        font-size: {small}pt;
     }}
-
-    /* ---- menu bar ------------------------------------------------------ */
-    QMenuBar {{
-        background: {pal['surface']};
-        color: {pal['text']};
-        padding: 2px 6px;
-    }}
-    QMenuBar::item {{
-        background: transparent;
-        padding: 4px 10px;
-        border-radius: 6px;
-    }}
-    QMenuBar::item:selected, QMenuBar::item:pressed {{
-        background: {pal['surface_container_high']};
-    }}
-    QMenu {{
-        background: {pal['surface_container_low']};
-        color: {pal['text']};
-        border: 1px solid {pal['outline_variant']};
-        padding: 4px;
-    }}
-    QMenu::item {{ padding: 5px 28px 5px 12px; border-radius: 5px; }}
-    QMenu::item:selected {{ background: {pal['selection']}; color: {pal['text']}; }}
-    QMenu::separator {{
-        height: 1px;
-        background: {pal['outline_variant']};
-        margin: 4px 8px;
-    }}
-
-    /* ---- help ---------------------------------------------------------- */
-    /* The section list reads as navigation, not as a list of paths. */
+    /* The help's section list reads as navigation, not as a list of paths. */
     QListWidget[nav="true"] {{
         font-family: "{sans}";
-        font-size: 11pt;
+        font-size: {large}pt;
         padding: 4px 0;
     }}
     QListWidget[nav="true"]::item {{
         padding: 6px 12px;
         border-left: 3px solid transparent;
-    }}
-    QListWidget[nav="true"]::item:hover {{
-        background: {pal['surface_container_high']};
     }}
     QListWidget[nav="true"]::item:selected {{
         background: {pal['selection']};
@@ -401,18 +530,6 @@ def build_qss(pal: dict, sans: str, mono: str) -> str:
     }}
     QTextBrowser {{
         font-family: "{sans}";
-        font-size: 11pt;
-        padding: 6px 10px;
-        background: {pal['surface_container_low']};
-        border: 1px solid {pal['outline_variant']};
-        border-radius: 8px;
-        selection-background-color: {pal['primary']};
-        selection-color: {pal['on_primary']};
-    }}
-    QToolTip {{
-        background: {pal['surface_container_highest']};
-        color: {pal['text']};
-        border: 1px solid {pal['outline_variant']};
-        padding: 4px 7px;
+        font-size: {large}pt;
     }}
     """

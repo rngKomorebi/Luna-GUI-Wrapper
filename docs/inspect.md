@@ -93,14 +93,22 @@ gain studies where the saturation is the point.
 
 ## Plot styling
 
-The plots follow the app theme using two style sheets from
+The plots follow the app theme (**View** → **Theme**). The two Luna themes
+use style sheets from
 [komorebi_mpl](https://github.com/rngKomorebi/komorebi_mpl):
 
 | App theme | Style | Colormap |
 |---|---|---|
-| Dark | `night_wave` | plasma |
-| Light | `sci_pure` | cividis |
+| Luna dark | `night_wave` | plasma |
+| Luna light | `sci_pure` | cividis |
 
 `pip install komorebi_mpl` (it is in `requirements.txt`). It is optional: if it
-is not installed the plots colour themselves from the app palette, so nothing
-breaks.
+is not installed these themes' plots are drawn from the theme's own colours,
+so nothing breaks.
+
+The other ten themes, from daplis-rtp, draw the plots in their own colours:
+figure and plot background, ticks and labels, axes frame, grid and five trace
+colours, with inward ticks on all four sides. **View** → **Preferences...**
+changes any of these, the plot font size and the marker size. On a Luna theme
+the change is laid over the komorebi style. Hitmaps never get a grid. A theme
+change applies to plots opened after it; plots already open keep their look.

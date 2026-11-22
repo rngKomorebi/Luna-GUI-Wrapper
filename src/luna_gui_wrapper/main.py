@@ -14,7 +14,8 @@ from PySide6.QtWidgets import QApplication
 from .functions.common import (APP_NAME, APP_USER_MODEL_ID, DESKTOP_FILE_NAME,
                                ICON_PATH, IS_WINDOWS)
 from .gui.main_window import MainWindow
-from .gui.style import PALETTES, build_palette
+from .gui.theme import theme_manager
+from .gui.title_bar import install_dark_title_bars
 
 
 def set_linux_desktop_name(app):
@@ -62,7 +63,13 @@ def main():
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
     set_linux_desktop_name(app)
-    app.setPalette(build_palette(PALETTES["light"]))   # replaced by apply_theme
+    # Before the widgets it applies to, so that nothing is built in the
+    # default palette and re-polished into the themed one.
+    theme_manager().apply_to_app(app)
+    # Before any window is shown, so that none of them - the main window,
+    # Preferences, Help, the message boxes - first appears with the light
+    # system title bar.
+    install_dark_title_bars(app)
     if ICON_PATH:
         app.setWindowIcon(QIcon(str(ICON_PATH)))
     win = MainWindow()

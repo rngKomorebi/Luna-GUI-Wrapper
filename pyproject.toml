@@ -41,6 +41,10 @@ analysis = [
     "matplotlib",
     "komorebi_mpl",
 ]
+# The glow under plot traces (Preferences -> Glow).
+themes = [
+    "mplcyberpunk",
+]
 dev = [
     "pytest",
     "ruff",

@@ -40,6 +40,7 @@ SECTIONS = [
     ("tdc", "TDC"),
     ("timewalk", "Timewalk correction"),
     ("dcr", "Dark count rate"),
+    ("themes", "Themes and preferences"),
     ("trouble", "Troubleshooting"),
     ("about", "Settings and about"),
 ]
@@ -516,6 +517,29 @@ frame are small integers, so the median is interpolated within the middle
 count rather than moving in whole-count steps.
 <b>Export CSV...</b> writes one row per pixel.</p>
 
+<a name="themes"></a><h2>Themes and preferences</h2>
+<p><b>View</b> → <b>Theme</b> sets the colours of the window and of the
+plots. <b>Luna light</b> (the default) and <b>Luna dark</b> are the app's own;
+the other ten come from daplis-rtp. Cyberpunk, Midnight, Night wave, Blueprint
+and High contrast are dark; Daylight, Komorebi, Earth, Solarized and Daplis
+(publication) are light. Every theme keeps the same layout, the same fonts on
+every tab, and the meaning of the yellow <b>Advanced flags</b> and green
+wrapper-options buttons.</p>
+<p><b>View</b> → <b>Preferences...</b> (Ctrl+,) changes any single
+colour: the window's (background, panels, input fields, buttons, borders,
+three shades of text, the accent), the three status colours, the plots'
+(figure and plot background, ticks and labels, axes frame, grid, reference
+lines) and five trace colours. It also sets the interface and plot font sizes,
+the marker size, the grid, and a glow under the traces (with
+<code>mplcyberpunk</code> installed). Every change applies at once to the
+window; plots take the theme in force when they are opened. Picking a theme
+again clears your changes to it; <b>Reset to defaults</b> clears everything.
+The window can stay open beside the main one.</p>
+<p>The Luna themes draw their plots with the komorebi_mpl styles
+<code>sci_pure</code> and <code>night_wave</code>, as before, with any
+change made in Preferences on top. On Windows every window gets a dark title
+bar, whatever the theme.</p>
+
 <a name="trouble"></a><h2>Troubleshooting</h2>
 {trouble}
 
@@ -523,46 +547,49 @@ count rather than moving in whole-count steps.
 <p>{escape(APP_NAME)}, version {escape(__version__)}. F1 opens this window
 from anywhere in the app.</p>
 <p>Settings — detector, the Luna folder and batch folders of each detector,
-template, flags, TDC reference and theme — are saved on exit to <code>{escape(str(CONFIG_PATH))}</code>. The
-<b>View</b> menu switches between the light and dark theme.</p>
+template, flags, TDC reference, theme and preferences — are saved on
+exit to <code>{escape(str(CONFIG_PATH))}</code>. The <b>View</b> menu holds the
+theme and Preferences (see
+<a href="#themes">Themes and preferences</a>).</p>
 <p>This program only wraps Luna: it runs your unmodified
 <code>tpx3dump</code> or <code>tpx4dump</code> through its command line and
 contains no part of it.</p>
 """
 
 
-def style_sheet(pal, mono) -> str:
+def style_sheet(pal, mono, size=10) -> str:
     """CSS for the rich text, which the app stylesheet does not reach."""
-    # Sized and spaced for reading rather than scanning: 11 pt body with
-    # open line spacing, section titles in the heading colour, bold terms
-    # in the text colour so they stand out from the prose around them.
+    # Sized and spaced for reading rather than scanning: a body a point above
+    # the interface font with open line spacing, section titles in the
+    # heading colour, bold terms in the text colour so they stand out from
+    # the prose around them. At the default 10 pt: 11 / 15 / 12 / 10 pt.
     return f"""
-        body {{ color: {pal['text']}; font-size: 11pt; }}
+        body {{ color: {pal['text']}; font-size: {size + 1}pt; }}
         p {{ line-height: 135%; margin-top: 4px; margin-bottom: 8px; }}
         li {{ line-height: 135%; margin-bottom: 4px; }}
         ul, ol {{ margin-top: 2px; margin-bottom: 8px; }}
-        h2 {{ font-size: 15pt; font-weight: 700; color: {pal['heading']};
+        h2 {{ font-size: {size + 5}pt; font-weight: 700; color: {pal['heading']};
               margin-top: 28px; margin-bottom: 6px; }}
         h2.first {{ margin-top: 0; }}
-        h3 {{ font-size: 12pt; font-weight: 700; color: {pal['text']};
+        h3 {{ font-size: {size + 2}pt; font-weight: 700; color: {pal['text']};
               margin-top: 18px; margin-bottom: 4px; }}
         b {{ color: {pal['text']}; font-weight: 700; }}
         a {{ color: {pal['heading']}; text-decoration: none; }}
-        code {{ font-family: "{mono}"; font-size: 10pt; color: {pal['text']};
+        code {{ font-family: "{mono}"; font-size: {size}pt; color: {pal['text']};
                 background-color: {pal['surface_container_high']}; }}
-        pre {{ font-family: "{mono}"; font-size: 10pt;
+        pre {{ font-family: "{mono}"; font-size: {size}pt;
                background-color: {pal['surface_container_high']}; }}
         th {{ color: {pal['text_muted']}; font-weight: 700; }}
         td {{ line-height: 130%; }}
         .muted {{ color: {pal['text_muted']}; }}
-        .faint {{ color: {pal['text_faint']}; font-size: 10pt; }}
+        .faint {{ color: {pal['text_faint']}; font-size: {size}pt; }}
     """
 
 
 class HelpWindow(QDialog):
     """Topic list on the left, the page on the right, a find box on top."""
 
-    def __init__(self, pal, mono, parent=None):
+    def __init__(self, pal, mono, parent=None, size=10):
         super().__init__(parent)
         self.setWindowTitle(APP_NAME + " — Help")
         self.resize(980, 720)
@@ -600,13 +627,14 @@ class HelpWindow(QDialog):
         lay.addLayout(body, 1)
 
         self.mono = mono
-        self.set_palette(pal)
+        self.set_palette(pal, size)
 
-    def set_palette(self, pal):
-        """Re-render in new colours, keeping the reader's place."""
+    def set_palette(self, pal, size=10):
+        """Re-render in new colours and size, keeping the reader's place."""
         bar = self.view.verticalScrollBar()
         pos = bar.value()
-        self.view.document().setDefaultStyleSheet(style_sheet(pal, self.mono))
+        self.view.document().setDefaultStyleSheet(
+            style_sheet(pal, self.mono, size))
         self.view.setHtml(help_html(pal))
         bar.setValue(pos)
 

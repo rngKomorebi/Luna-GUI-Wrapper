@@ -7,3 +7,4 @@ numpy
 pandas             # TDC columns: the joined hits/clusters frame
 matplotlib
 komorebi_mpl       # plot styles: night_wave (dark) / sci_pure (light)
+mplcyberpunk       # the optional glow under plot traces (Preferences -> Glow)
