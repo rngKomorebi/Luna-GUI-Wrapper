@@ -11,8 +11,9 @@ import traceback
 from collections import deque
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt, QTimer
-from PySide6.QtGui import QActionGroup, QFontDatabase, QIcon, QKeySequence
+from PySide6.QtCore import QProcess, QRegularExpression, Qt, QTimer
+from PySide6.QtGui import (QActionGroup, QFontDatabase, QIcon, QKeySequence,
+                           QRegularExpressionValidator)
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
     QDoubleSpinBox,
@@ -35,8 +36,8 @@ from ..functions.dcr import (DCR_DEFAULT_NOISY_K, DCR_DEFAULT_TIME_SOURCE,
                              measure_dcr, pick_time, write_dcr_csv)
 from ..functions.detectors import DETECTORS, TPX3, TPX4, detect_from_file
 from ..functions.failures import diagnose, still_fails
-from ..functions.flags import (FLAG_GROUPS, FLAGS, flag_args, flag_bits,
-                               flag_problems)
+from ..functions.flags import (FLAG_GROUPS, FLAGS, POSINT, flag_args,
+                               flag_bits, flag_problems)
 from ..functions.naming import (DEFAULT_TEMPLATE, LUNA_COMMENT,
                                 PRESET_TEMPLATES, TEMPLATE_HELP, Job,
                                 effective_template, measurement_context,
@@ -742,7 +743,16 @@ class MainWindow(QMainWindow):
         # placeholder, so the field reads as "default" -- it passes the same.
         if f.gui_default and str(saved).replace(" ", "") == f.gui_default:
             saved = ""
+        # A positive-integer field drops a saved value it could not hold now
+        # (e.g. --eps-s 2.5 from before it became whole pixels), so it falls
+        # back to the default instead of failing the next run.
+        if f.kind == "posint" and not POSINT.match(str(saved).strip()):
+            saved = ""
         e = PathEdit(str(saved)) if f.kind == "path" else QLineEdit(str(saved))
+        if f.kind == "posint":
+            # Only 1, 2, 3, ... can be typed; empty still means the default.
+            e.setValidator(QRegularExpressionValidator(
+                QRegularExpression(POSINT.pattern), e))
         # Grey text for what an empty field passes: the GUI's default if it
         # has one, otherwise Luna's (and then nothing is passed).
         e.setPlaceholderText(f.shown_default or "")
