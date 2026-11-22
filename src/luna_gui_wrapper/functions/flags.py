@@ -37,6 +37,13 @@ class Flag:
     tip: str = ""       # the longer story, as a tooltip
     choices: tuple = () # the values offered; the GUI adds a "default" entry
     detectors: tuple = BOTH
+    gui_default: str = ""  # this GUI's own default, passed when the field is
+                           # left empty; "" = pass nothing, Luna's default holds
+
+    @property
+    def shown_default(self) -> str:
+        """The value an empty field stands for: the GUI's, else Luna's."""
+        return self.gui_default or self.default
 
 
 # Time values carry their unit: Luna parses "100ns", "0.495s", ...
@@ -78,12 +85,18 @@ FLAG_GROUPS = [
              "Off by default.", detectors=TPX4_ONLY),
     ]),
     ("Clustering", [
+        # eps-s / eps-t: this GUI passes its own defaults, which cluster
+        # better than Luna's 1 px / 100 ns, whenever the field is left empty.
         Flag("--eps-s", "eps_s", "number", "1",
-             "largest gap between hits of one cluster, in pixels"),
+             "largest gap between hits of one cluster, in pixels",
+             "Left empty, this GUI passes 2.5 (Luna's own default is 1).",
+             gui_default="2.5"),
         Flag("--eps-t", "eps_t", "duration", "100ns",
              "largest time gap between hits of one cluster, with a unit",
              "Write the unit with the number, e.g. 200ns or 1.5us. "
-             "Valid units: " + ", ".join(DURATION_UNITS) + "."),
+             "Valid units: " + ", ".join(DURATION_UNITS) + ".\n"
+             "Left empty, this GUI passes 300ns (Luna's own default is 100ns).",
+             gui_default="300ns"),
         Flag("--clustering-algorithm", "clustering_algorithm", "choice",
              "DFSCluster",
              "DFSCluster: stable, slower;  Kuttruff2024: faster, experimental",
@@ -163,7 +176,8 @@ def flag_bits(values: dict, translate=str, detector="tpx3") -> list[list[str]]:
     """The argv pieces, one list per flag that is set.
 
     `values` maps each Flag.key to the control's text (or bool for a switch);
-    missing keys count as unset. `translate` maps a path-valued flag onto the
+    missing keys count as unset, and an unset flag with a gui_default passes
+    that. `translate` maps a path-valued flag onto the
     machine the converter runs on, e.g. Backend.translate. Only the flags
     `detector`'s converter accepts are considered, so a value saved while the
     other detector was in use is kept but never passed.
@@ -177,7 +191,7 @@ def flag_bits(values: dict, translate=str, detector="tpx3") -> list[list[str]]:
             if values.get(f.key + "_on") and values.get(f.key):
                 out.append([f.flag, values[f.key]])
         else:
-            val = str(values.get(f.key, "")).strip()
+            val = str(values.get(f.key, "")).strip() or f.gui_default
             if not val:
                 continue
             if f.kind == "duration":
@@ -203,7 +217,7 @@ def flag_problems(values: dict, detector="tpx3") -> list[str]:
             continue
         if f.kind == "duration" and not _DURATION.match(val.replace(" ", "")):
             problems.append(f"{f.flag} needs a number with a unit, e.g. "
-                            f"{f.default} -- got '{val}'.")
+                            f"{f.shown_default} -- got '{val}'.")
         elif f.kind == "int" and not _INT.match(val):
             problems.append(f"{f.flag} needs a whole number -- got '{val}'.")
         elif f.kind == "number" and not _NUMBER.match(val):

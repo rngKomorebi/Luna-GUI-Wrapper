@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QDir, QRect, QRectF, Qt, Signal
+from PySide6.QtCore import QDir, QEvent, QRect, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainterPath, QPen
-from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHBoxLayout,
-                               QHeaderView, QLabel, QLineEdit, QPlainTextEdit,
-                               QPushButton, QTableView, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFrame,
+                               QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+                               QPlainTextEdit, QPushButton, QStyle,
+                               QStyledItemDelegate, QStyleOptionViewItem,
+                               QTableView, QWidget)
 
 # ---------------------------------------------------------------------------
 # small widget helpers
@@ -113,6 +115,45 @@ def button(text, slot=None, accent=False, toggle=False, danger=False, tip=""):
     return b
 
 
+# ---------------------------------------------------------------------------
+# themed check box, drawn by hand
+# ---------------------------------------------------------------------------
+
+def paint_check_box(painter, box, state, pal):
+    """The QCheckBox::indicator look, painted into box (a QRectF).
+
+    Shared by the queue header and the queue rows, so the master box and the
+    per-file boxes are one shape in one set of colours. Leaves the painter's
+    pen and brush changed: callers wrap it in save()/restore().
+    """
+    checked = state == Qt.CheckState.Checked
+    partial = state == Qt.CheckState.PartiallyChecked
+    painter.setRenderHint(painter.RenderHint.Antialiasing, True)
+    fill = pal["primary"] if checked or partial else pal["surface_container_low"]
+    edge = pal["primary_border"] if checked or partial else pal["outline"]
+    painter.setPen(QPen(QColor(edge), 1))
+    painter.setBrush(QColor(fill))
+    painter.drawRoundedRect(box, 4, 4)
+
+    mark = QPen(QColor(pal["on_primary"]), 2,
+                Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin)
+    if checked:
+        path = QPainterPath()
+        path.moveTo(box.x() + box.width() * 0.24, box.y() + box.height() * 0.52)
+        path.lineTo(box.x() + box.width() * 0.44, box.y() + box.height() * 0.72)
+        path.lineTo(box.x() + box.width() * 0.78, box.y() + box.height() * 0.28)
+        painter.setPen(mark)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
+    elif partial:
+        painter.setPen(mark)
+        painter.drawLine(int(box.x() + box.width() * 0.25),
+                         int(box.center().y()),
+                         int(box.x() + box.width() * 0.75),
+                         int(box.center().y()))
+
+
 class CheckHeader(QHeaderView):
     """Horizontal header that draws a master checkbox in one section.
 
@@ -136,11 +177,26 @@ class CheckHeader(QHeaderView):
         self.label = label
         self.box_state = Qt.CheckState.Unchecked
         self.setSectionsClickable(True)
-        self.sectionClicked.connect(self._clicked)
 
-    def _clicked(self, index):
-        if index == self.box_col:
+    # Toggled on the press itself, not through sectionClicked. A quick second
+    # click arrives as a double-click event, and with sectionClicked the pair
+    # could cancel out -- the box looked stuck. Here each click is one toggle,
+    # however fast they come.
+    def _box_press(self, event):
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self.logicalIndexAt(event.position().toPoint()) == self.box_col):
             self.box_clicked.emit()
+            event.accept()
+            return True
+        return False
+
+    def mousePressEvent(self, event):
+        if not self._box_press(event):
+            super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        if not self._box_press(event):
+            super().mouseDoubleClickEvent(event)
 
     def set_palette(self, palette):
         self.pal = palette
@@ -164,37 +220,11 @@ class CheckHeader(QHeaderView):
         painter.restore()
         if index != self.box_col:
             return
-        checked = self.box_state == Qt.CheckState.Checked
-        partial = self.box_state == Qt.CheckState.PartiallyChecked
         box = QRectF(rect.x() + 8.5,
                      rect.y() + (rect.height() - self.BOX) / 2.0 + 0.5,
                      self.BOX - 1, self.BOX - 1)
-
         painter.save()
-        painter.setRenderHint(painter.RenderHint.Antialiasing, True)
-        fill = self.pal["primary"] if checked or partial else             self.pal["surface_container_low"]
-        edge = self.pal["primary_border"] if checked or partial else             self.pal["outline"]
-        painter.setPen(QPen(QColor(edge), 1))
-        painter.setBrush(QColor(fill))
-        painter.drawRoundedRect(box, 4, 4)
-
-        mark = QPen(QColor(self.pal["on_primary"]), 2,
-                    Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                    Qt.PenJoinStyle.RoundJoin)
-        if checked:
-            path = QPainterPath()
-            path.moveTo(box.x() + box.width() * 0.24, box.y() + box.height() * 0.52)
-            path.lineTo(box.x() + box.width() * 0.44, box.y() + box.height() * 0.72)
-            path.lineTo(box.x() + box.width() * 0.78, box.y() + box.height() * 0.28)
-            painter.setPen(mark)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawPath(path)
-        elif partial:
-            painter.setPen(mark)
-            painter.drawLine(int(box.x() + box.width() * 0.25),
-                             int(box.center().y()),
-                             int(box.x() + box.width() * 0.75),
-                             int(box.center().y()))
+        paint_check_box(painter, box, self.box_state, self.pal)
 
         if self.label:
             painter.setPen(QColor(self.pal["text_muted"]))
@@ -206,6 +236,69 @@ class CheckHeader(QHeaderView):
                                  self.label, Qt.TextElideMode.ElideRight,
                                  text.width()))
         painter.restore()
+
+
+class CheckDelegate(QStyledItemDelegate):
+    """Per-row check box for one table column, in the CheckHeader look.
+
+    The style-drawn indicator ignored the theme: ticked it was a bare mark in
+    the row's status colour (green on a done file), unticked a dark square that
+    vanished into the row, and only a hit on that small square counted. Here
+    the box is drawn like the header's, and a click anywhere in the cell
+    toggles it -- through the model's setData, as before.
+    """
+
+    BOX = CheckHeader.BOX
+
+    def __init__(self, palette, parent=None):
+        super().__init__(parent)
+        self.pal = palette
+
+    def set_palette(self, palette):
+        self.pal = palette
+
+    def paint(self, painter, option, index):
+        # Background and selection as for any other cell, then the box.
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        opt.features &= ~QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
+        opt.text = ""
+        style = opt.widget.style() if opt.widget else QApplication.style()
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter,
+                          opt.widget)
+        state = index.data(Qt.ItemDataRole.CheckStateRole)
+        if state is None:
+            return                      # nothing to overwrite: no box at all
+        r = option.rect
+        box = QRectF(r.x() + 8.5, r.y() + (r.height() - self.BOX) / 2.0 + 0.5,
+                     self.BOX - 1, self.BOX - 1)
+        painter.save()
+        paint_check_box(painter, box, Qt.CheckState(state), self.pal)
+        painter.restore()
+
+    @staticmethod
+    def _toggle(model, index):
+        state = index.data(Qt.ItemDataRole.CheckStateRole)
+        ticked = state is not None and Qt.CheckState(state) == Qt.CheckState.Checked
+        new = Qt.CheckState.Unchecked if ticked else Qt.CheckState.Checked
+        return model.setData(index, new.value, Qt.ItemDataRole.CheckStateRole)
+
+    def editorEvent(self, event, model, option, index):
+        if not (index.flags() & Qt.ItemFlag.ItemIsUserCheckable):
+            return False
+        t = event.type()
+        # On the press, and on a double-click's second press too, so two quick
+        # clicks are two toggles rather than one that the other undoes.
+        if t in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick):
+            if event.button() != Qt.MouseButton.LeftButton:
+                return False
+            return self._toggle(model, index)
+        if t == QEvent.Type.MouseButtonRelease:
+            return True                 # already handled on the press
+        if (t == QEvent.Type.KeyPress
+                and event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Select)):
+            return self._toggle(model, index)
+        return False
 
 
 def table(model, stretch_cols=(), widths=()):

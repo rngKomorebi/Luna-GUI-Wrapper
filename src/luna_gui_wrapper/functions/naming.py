@@ -163,6 +163,22 @@ def measurement_context(tpx3: Path) -> dict:
     return ctx
 
 
+LUNA_COMMENT = "{luna_comment}"
+
+
+def effective_template(template: str, luna_comment: str) -> str:
+    """The template actually used once a Luna comment is typed in.
+
+    A comment typed on the Advanced tab (what was changed for this run, e.g.
+    "--eps-t 300 ns") goes on the end of the name. Empty -> the template is
+    unchanged. A template that already places {luna_comment} itself is left
+    alone, so the comment never appears twice.
+    """
+    if not sanitize(luna_comment or "") or LUNA_COMMENT in template:
+        return template
+    return template + "_" + LUNA_COMMENT
+
+
 def render_name(template: str, ctx: dict) -> str:
     """Expand a filename template, dropping unknown placeholders gracefully."""
     class _Safe(dict):
