@@ -23,14 +23,29 @@ You need your own Luna (the Ubuntu build, containing `bin/tpx3dump` or
 `bin/tpx4dump`), Python 3.9+, and on Windows WSL with Ubuntu, since Luna is a
 Linux binary.
 
-```bash
-git clone https://github.com/rngKomorebi/Luna-GUI-Wrapper
-cd Luna-GUI-Wrapper
-```
+Get the GUI in one of two ways:
+
+- **Download a release** (no git needed): from the
+  [latest release](https://github.com/rngKomorebi/Luna-GUI-Wrapper/releases/latest)
+  take **Source code (tar.gz)** or **(zip)** and unpack it, e.g.
+
+  ```bash
+  tar xzf Luna-GUI-Wrapper-<version>.tar.gz
+  cd Luna-GUI-Wrapper-<version>
+  ```
+
+- **Clone** the repository, for the newest code:
+
+  ```bash
+  git clone https://github.com/rngKomorebi/Luna-GUI-Wrapper
+  cd Luna-GUI-Wrapper
+  ```
+
+Then, from inside that folder:
 
 | Platform | Run once | Sets up |
 |---|---|---|
-| **Linux** | `sudo apt install python3-venv libxcb-cursor0`, then `./install-linux.sh` | private venv, menu launcher, Desktop icon |
+| **Linux** | `sudo apt install python3-venv libxcb-cursor0`, then `bash install-linux.sh` | private venv, menu launcher, Desktop icon |
 | **Windows** | `wsl --install -d Ubuntu`, then `.\install-windows.ps1` | private venv, Desktop shortcut |
 | **Any** | `pip install -e ".[analysis]"` | the package and the `luna-gui-wrapper` command |
 

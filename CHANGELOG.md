@@ -27,9 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Luna's own are 1 and 100ns). The empty field shows the value in grey, and
   a run passes it unless another value is typed in. Tooltips and the flag
   guide name both defaults.
+- README, Install: besides `git clone`, the GUI can be had by downloading the
+  latest release's source archive and unpacking it; the install steps that
+  follow are the same.
 
 ### Fixed
 
+- README told Linux users to run `./install-linux.sh`, which fails with
+  *Permission denied* in a fresh clone or an unpacked release, because the
+  script is not stored as executable. It now says `bash install-linux.sh`.
 - The per-file **Overwrite** boxes in the queue are drawn like the header's
   box, visible ticked and unticked, and a click anywhere in the cell toggles
   one. Quick repeated clicks, on a row or the header, no longer cancel each
